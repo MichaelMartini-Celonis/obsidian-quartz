@@ -1,0 +1,11 @@
+# Search engine dependencies (installed into scripts/.venv).
+# duckdb pinned to 1.4.4 for compatibility with the duckpgq (SQL/PGQ) community
+# extension used in Phase 1; vss + fts also load on this version.
+duckdb==1.4.4
+# Local embeddings (ONNX, CPU, no PyTorch). Default embedder = BAAI/bge-small-en-v1.5.
+fastembed>=0.4
+# Optional: only needed if a future gateway embedding endpoint is used.
+requests>=2.31
+# Reused for extraction (already needed by the importer):
+pypdf>=6.0
+python-docx>=1.1

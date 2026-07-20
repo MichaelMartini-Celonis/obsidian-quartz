@@ -1,13 +1,27 @@
+# Ignores for the ~/docs knowledge repository.
+
+# macOS
 .DS_Store
-.gitignore
-node_modules
-public
-prof
-tsconfig.tsbuildinfo
-.obsidian
-.quartz-cache
-private/
-.replit
-replit.nix
-.quartz/
-quartz/cli/tui/dist/
+
+# Independent reference checkouts — cloned/pulled separately, only used as reference.
+# (e.g. the Celonis Context Model documentation wiki)
+reference/
+
+# Source document libraries — large binaries, managed via the Inbox importer, not git.
+Literature/
+Inbox/*
+!Inbox/README.md
+
+# Python tooling
+scripts/.venv/
+scripts/credentials.json
+scripts/.token.json
+scripts/.google-docs-manifest.json
+
+# Import manifests + library backups (large / machine-local)
+imports/
+
+# Search engine index (rebuilt from the corpus)
+search/*.duckdb
+search/*.duckdb.wal
+search/**/__pycache__/
