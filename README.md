@@ -26,9 +26,11 @@ for new material — rather than being confined to a single project subfolder.
     └── context-model-documentation/  <- Celonis Context Model wiki (pulled separately)
 ```
 
-`Literature/`, the contents of `Inbox/`, `imports/`, `reference/`, and `scripts/.venv/` are
-gitignored (large binaries and independently-managed checkouts); everything else in `~/docs` is
-tracked by this project.
+`Literature/`, the contents of `Inbox/`, `imports/`, `reference/`, the DuckDB search index
+(`search/*.duckdb`), and `scripts/.venv/` are gitignored (large binaries and independently-managed
+checkouts); everything else in `~/docs` is tracked by this project. The gitignored **search index +
+`Literature/` corpus** are versioned separately in a companion **Git LFS** repo at `~/docs-data`
+(see *Companion data repo* under Tooling).
 
 ### `Inbox/` — the drop zone
 Drop any `.pdf`, `.docx`, `.pptx`, `.epub`, `.md`, `.txt`, `.xlsx`, `.ipynb`, `.bpmn` here
@@ -75,9 +77,26 @@ Python tooling lives in `scripts/` (virtualenv at `scripts/.venv/`):
 | Command | Purpose |
 |---|---|
 | `scripts/.venv/bin/python scripts/import-downloads.py` | Import + classify + rename files dropped in `Inbox/` into `Literature/` (de-duplicates against the library). |
+| `scripts/.venv/bin/python scripts/import-web-book.py` | Import free online HTML books (e.g. the Google SRE books) into `Literature/` as markdown (`--list` / `--only KEY`). |
+| `scripts/.venv/bin/python scripts/package-data.py` | Package the DuckDB search index + `Literature/` into the companion **Git LFS** data repo (`init` / `pack` / `push` / `restore` / `status`). |
 
-`import-downloads.py` is the only maintained script; the historical one-off migration tools have
-been removed.
+### Companion data repo (`~/docs-data`, Git LFS)
+
+The heavy, binary artifacts — the built DuckDB search index (`search/index.duckdb`, ~1.7 GB) and the
+`Literature/` corpus (~2.8 GB) — are gitignored here and instead versioned in a **separate LFS-backed
+git repository** so the code + agent skills stay lean and the data can be located/cloned
+independently. `scripts/package-data.py` manages it:
+
+```bash
+scripts/.venv/bin/python scripts/package-data.py init       # create ~/docs-data (+ git-lfs, .gitattributes)
+scripts/.venv/bin/python scripts/package-data.py pack        # checkpoint index, mirror data, write manifest, commit
+scripts/.venv/bin/python scripts/package-data.py push        # push (or print GitHub remote-setup instructions)
+scripts/.venv/bin/python scripts/package-data.py restore     # on a new machine: place index + Literature back (--link to symlink)
+scripts/.venv/bin/python scripts/package-data.py status      # git status + drift vs. the live data
+```
+
+The location defaults to a `~/docs-data` sibling (override with `--repo` or `DOCS_DATA_REPO`). At
+~4.5 GB total, pushing to GitHub LFS requires paid data packs, and the repo should be **private**.
 
 ---
 

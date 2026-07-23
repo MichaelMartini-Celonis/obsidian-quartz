@@ -1,7 +1,7 @@
 # Search engine — progress & roadmap
 
 A living status doc for the Graph-RAG search engine over the `~/docs` knowledge repository.
-Last updated: 2026-07-20.
+Last updated: 2026-07-22.
 
 ## Goal
 
@@ -24,6 +24,41 @@ keywords, citations) for Graph-RAG next.
 
 ### Decision log
 
+- **2026-07-22 — Filenames retitled from enriched metadata + library deduplicated.**
+  Enrichment had already cleaned the *titles* in the index, but files on disk kept their
+  junk names (numeric bookmark indices like `14 - Title.pdf`, `Unknown -` prefixes,
+  publisher strings, `.dvi`/arXiv-id stems). New `search/retitle.py` renames each
+  `Literature/` file to `<Author label> - <Title>.<ext>` from the enriched `title`/`authors`,
+  updating `documents.path` in place (content hash unchanged → no re-embed). Dry-run by
+  default; guards for multi-particle surnames (`van der Aalst`), `et al.` convention,
+  front-matter titles, and proceedings front matter. Applied to **513** files. Then a
+  dedup pass grouped by normalised title+lead-author, **protected intentional variants**
+  (slides / short / PhD-thesis / extended-abstract), preferred topic-filed copies over the
+  raw `Proceedings/` dump, deleted **24** redundant copies, and canonicalised the 24
+  keepers' names (fixing mangled leads `onig1`→`Schonig`, `ANGLES … 1`→`Angles et al.`,
+  stale `(2)`, `Atserias†`→`Atserias`, wrong lead `Fahland`→`Lu et al.`). Library: 989 → **963**
+  indexed docs (the 18 proceedings monoliths stay unindexed by design). Also swapped the
+  image-only Murata scan for a text version (now 203 chunks) and rehomed two internal design
+  docs into a new `Literature/Context Model/` topic.
+- **2026-07-21 — Online HTML books imported as markdown (`scripts/import-web-book.py`).**
+  Added the Google SRE trio — *Site Reliability Engineering*, *The Site Reliability Workbook*
+  (both `sre.google`), and *Building Secure and Reliable Systems* (`google.github.io`) — under a
+  new `Literature/Site Reliability Engineering/` topic. These are published only as per-chapter
+  HTML, so the tool walks each book's TOC, fetches every chapter, strips site chrome (nav dropdowns,
+  cookie/footer/pager) via tag+class rules, converts the main content node to markdown (parsing from
+  bytes so UTF-8 is correct; flowing `<p>`/`<li>` so inline links/emphasis don't fragment
+  sentences), and writes one `.md` per book (~1 MB each). Books are registered in a `BOOKS` table for
+  re-runs. Indexed (3 docs, ~2.4k chunks), enriched, and folded into the graph.
+- **2026-07-21 — Index + Literature packaged into a separate Git LFS repo (`scripts/package-data.py`).**
+  The `~/docs` repo holds only code + agent skills; the built DuckDB index (`search/index.duckdb`,
+  ~1.7 GB) and the `Literature/` corpus (~2.8 GB) are gitignored and instead versioned in a companion
+  **LFS-backed** repo at `~/docs-data` (sibling; override via `--repo`/`DOCS_DATA_REPO`), so data is
+  located/cloned independently of the code. Tool commands: `init` (git-lfs + `.gitattributes` for
+  `*.pdf`/`*.duckdb`/… + README), `pack` (DuckDB `CHECKPOINT` to fold the WAL, then copy the single
+  file + `rsync -a --delete` mirror of Literature, write `manifest.json` with index stats/embedder/
+  code-commit/sizes/DB sha256, commit), `push` (or print `gh repo create --private` instructions),
+  `restore` (copy or `--link` back into `~/docs`), `status` (git + live-vs-packaged drift). ~4.5 GB
+  total → GitHub LFS needs paid data packs; repo must be private.
 - **2026-07-20 — Phase 1 knowledge graph shipped (`duckpgq`).** Added `authors`,
   `keywords`, `topics` node tables + `has_author` / `has_keyword` / `has_topic` /
   `similar_to` edges, and a `duckpgq` property graph `kg` over them. `SIMILAR_TO` is a

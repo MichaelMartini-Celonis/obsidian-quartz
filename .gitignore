@@ -24,4 +24,4 @@ imports/
 # Search engine index (rebuilt from the corpus)
 search/*.duckdb
 search/*.duckdb.wal
-search/**/__pycache__/
+**/__pycache__/
