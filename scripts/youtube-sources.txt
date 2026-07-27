@@ -1,0 +1,91 @@
+# YouTube sources for the transcript importer (scripts/import-youtube.py).
+# One URL per line. Supported: watch?v= videos, playlist/list= playlists,
+# youtu.be/<id>, and channels (/@handle, /channel/UC..., /c/, /user/).
+# Lines starting with '#' are ignored. `enqueue` expands playlists/channels
+# into the backlog (imports/youtube-backlog.json); `run` fetches transcripts.
+
+https://www.youtube.com/watch?v=7NPIENPr-zk&list=PLSE8ODhjZXjYMAgsGH-GtY5rJYZ6zjsd5
+https://www.youtube.com/watch?v=YWtH10gfcY0&list=PLSE8ODhjZXjYCZfIbmEWH7f6MnYqyPwCE
+https://www.youtube.com/watch?v=NLycrsJ1jI8&list=PLSE8ODhjZXjYa_zX-KeMJui7pcN1rIaIJ
+https://www.youtube.com/watch?v=aIGyEQhTG78&list=PLSE8ODhjZXjZEVnVTtgDWw6P3wA_gDwj4
+https://www.youtube.com/watch?v=kJaD0WuQ1Bg&list=PLSE8ODhjZXjbEeW_bOCZ8c_nx_Jhoz-GW
+https://www.youtube.com/watch?v=Kq3csHJqgJQ&list=PLSE8ODhjZXjYaHQP-kZcZSCv3bYWV3ZfD
+https://www.youtube.com/watch?v=zpgV0SPILmQ&list=PLSE8ODhjZXjbpOIrZheFWxkYG8HD87xW1
+https://www.youtube.com/watch?v=bU38Ovdh3NY&list=PLSE8ODhjZXjYVdJKka5g3xTKfPBITrxOu
+https://www.youtube.com/watch?v=pQe1LQJiXN0&list=PLSE8ODhjZXjYPyrUG_YxqYPS7wjWY6gYN
+https://www.youtube.com/watch?v=pS2_AJNIxzU&list=PLSE8ODhjZXjZKp-oX_75aBnznulk7nubu
+https://www.youtube.com/watch?v=spYEOcFZz2I&list=PLSE8ODhjZXjZdLET4InoSZ3App6WSQHXE
+https://www.youtube.com/watch?v=X4CupC6oiSQ&list=PL48K8NTnvGuGwKQKaRnZnBgaaj5hRC9Tb
+https://www.youtube.com/watch?v=0lXUBVipXa8&t=2700s
+https://www.youtube.com/watch?v=VxINoKFm-S4&t=810s
+https://www.youtube.com/watch?v=SWTWkYbcWU0&t=653s
+https://www.youtube.com/watch?v=MtGbaaozb1A&list=PLSE8ODhjZXjbjOyrcqgE6_lCV6xvzffSN
+https://www.youtube.com/watch?v=2SUBRE6wGiA&list=PLSE8ODhjZXjY0GMWN4X8FIkYNfiu8_Wl9
+https://www.youtube.com/watch?v=k0XAej_0In8&list=PLIl8q0p1ZZc4lOiWJ1mXQLr3oHBoMM9Q
+https://www.youtube.com/watch?v=czc07quxyEw&list=PLG_1ZxIPXO0vTTfheRNDhq4vNYAdJBUyC
+https://www.youtube.com/watch?v=2Xz6batTGlc&list=PLG_1ZxIPXO0uRZtlYxaLgc62kKfko8QQ6
+https://www.youtube.com/watch?v=yyts_srs_zc&list=PLG_1ZxIPXO0u0UVFWHgLFtP5YsrJdSKX1
+https://www.youtube.com/watch?v=VCi45naqnN8&list=PL--NmIRZfI0VCLmBm7ogDD1oAruHd83fB
+https://www.youtube.com/watch?v=prI35GmCon4&list=PLm3J0oaFux3ZYpFLwwrlv_EHH9wtH6pnX
+https://www.youtube.com/watch?v=khyrgbiz20o&list=PLm3J0oaFux3aafQm568blS9blxtA_EWQv
+https://www.youtube.com/@dirkfahland3531
+https://www.youtube.com/watch?v=xA8_kvfJRKk&t=14s
+https://www.youtube.com/watch?v=0DY543P6BzA&t=3980s
+https://www.youtube.com/watch?v=xA8_kvfJRKk
+https://www.youtube.com/watch?v=jmrU9Bw3Al0&list=PLOSOitOUYWYG_2Oyqh1tmh1eCP4U_0pwo
+https://www.youtube.com/watch?v=MF2vaEo3o58&list=PLtEF8_xCPklbSbCHBJ1XQ8mILXaacAm0L
+https://www.youtube.com/watch?v=xMmuS-UwWsc
+
+# --- added 2026-07-25: Stanford (PLoROMvodv4r) playlists + standalone videos ---
+https://www.youtube.com/watch?v=SQ3fZ1sAqXI&list=PLoROMvodv4rOY23Y0BoGoBGgQ1zmU_MT_
+https://www.youtube.com/watch?v=DzpHeXVSC5I&list=PLoROMvodv4rOaMFbaqxPDoLWjDaRAdP9D
+https://www.youtube.com/watch?v=kV1ru-Inzl4&list=PLoROMvodv4rMJqxxviPa4AmDClvcbHi6h
+https://www.youtube.com/watch?v=JAB_plj2rbA&list=PLoROMvodv4rOP-ImU-O1rYRg2RFxomvFp
+https://youtu.be/LWS8LEQAUVc
+https://www.youtube.com/watch?v=aDoorU4X6Jk
+https://youtu.be/0DY543P6BzA
+
+# --- added 2026-07-25: videos referenced by title (resolved via YouTube search) ---
+Time Series data Mining Using the Matrix Profile part 1
+[POPL'23] A Robust Theory of Series Parallel Graphs
+Calling Bullshit 1.1: Introduction to Bullshit
+TypeDB Lecture: Type Theory as the Unifying Foundation for Modern Databases
+DuckPGQ: Efficient Property Graph Queries in an analytical RDBMS (CIDR 2023)
+Umbra: A Disk-Based System with In-Memory Performance (Thomas Neumann)
+Jiawei Han | Mining Heterogeneous Information Networks
+Stanford Seminar - The Case for Learned Index Structures
+KGC 2022 Keynote: 'Deep Learning with Knowledge Graphs' by Stanford's Prof. Jure Leskovec
+Spectral Graph Theory: The Quadratic Form || @ CMU || Lecture 13a of CS Theory Toolkit
+02 - Modern Analytical Database Systems (CMU Advanced Databases / Spring 2023)
+Join Order Optimization with (almost) no Statistics by Tom Ebergen
+Factorized Databases
+In-Database Factorised Learning - Professor Dan Olteanu
+OMG Webinar: How to use BPMN, CMMN and DMN together
+KÙZU Graph Database Management System (CIDR 2023)
+Generic Graph Libraries in C++20 - Andrew Lumsdaine & Phil Ratzloff - CppCon 2021
+Writing Python Bindings for C++ Libraries: Easy-to-use Performance - Saksham Sharma - CppCon 2023
+How Compilers Work: Introduction to LLVM Passes - Andrzej Warzynski - C++ on Sea 2022
+Time Series data Mining Using the Matrix Profile part 2
+Brief Tutorial on Probabilistic Databases
+Trees and Series-Parallel Graphs || @ CMU || Lecture 22a of CS Theory Toolkit
+Treewidth Definitions || @ CMU || Lecture 22b of CS Theory Toolkit
+Multi Dimensional Process Analysis (Tutorial at BPM 2022)
+Datalog Tutorial
+WarpGate: A Semantic Join Discovery System for Cloud Data Warehouses (CIDR 2023)
+The Unreasonable Effectiveness of Multiple Dispatch | Stefan Karpinski | JuliaCon 2019
+What Happens After The Compiler in C++ (How Linking Works) - Anders Schau Knatten - C++ on Sea 2023
+Prof. Michael Schaub | Learning the effective order of a hypergraph dynamical system
+Process Mining Summer School 2022 - Process Discovery III [presenter view]
+
+# --- added 2026-07-25: videos embedded on vdaalst.com/slides/slides-and-videos.html ---
+https://www.youtube.com/watch?v=SmW4nOfHR-0
+https://www.youtube.com/watch?v=aHbHQ6caJoU
+https://www.youtube.com/watch?v=jPERVdZYgA8
+https://www.youtube.com/watch?v=cKLzHnP-rXU
+https://www.youtube.com/watch?v=fPyjr6EiA4A
+https://www.youtube.com/watch?v=0eLlFTql0VM
+https://www.youtube.com/watch?v=LUizKHAGwaA
+https://www.youtube.com/watch?v=jsO1KXQL0jg
+https://www.youtube.com/watch?v=NbiM8hvaKVg
+https://www.youtube.com/watch?v=UnBubqpztz0
+https://www.youtube.com/watch?v=sns1FsqkZ0I

@@ -33,6 +33,7 @@ def classify_source(path: Path) -> tuple[str, str, str]:
     resolved = path.resolve()
     for name, root in (
         ("Literature", config.LITERATURE_DIR),
+        ("Transcripts", config.TRANSCRIPTS_DIR),
         ("Outbox", config.OUTBOX_DIR),
         ("Inbox", config.INBOX_DIR),
     ):
@@ -42,6 +43,9 @@ def classify_source(path: Path) -> tuple[str, str, str]:
             continue
         if name == "Literature":
             topic = "/".join(rel.parts[:-1]) if len(rel.parts) > 1 else "(root)"
+        elif name == "Transcripts":
+            # Group by channel sub-folder, e.g. "Transcripts/DuckDB".
+            topic = f"Transcripts/{rel.parts[0]}" if len(rel.parts) > 1 else "Transcripts"
         else:
             topic = name
         return name, str(Path(name) / rel), topic
@@ -148,13 +152,14 @@ def index_file(con, embedder, path: Path) -> str:
         INSERT INTO documents
             (doc_id, path, rel_path, filetype, size, mtime, source, topic, title,
              authors, year, venue, abstract, n_pages, n_chunks,
-             extraction_confidence, needs_review, indexed_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+             extraction_confidence, needs_review, internal, indexed_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """,
         [
             doc_id, str(path), rel_path, path.suffix.lower(), stat.st_size, stat.st_mtime,
             source, topic, ex.title, ex.authors, ex.year, ex.venue, ex.abstract,
             ex.n_pages, len(chunk_rows), ex.extraction_confidence, ex.needs_review,
+            config.is_internal_rel_path(rel_path),
         ],
     )
 
@@ -165,6 +170,21 @@ def index_file(con, embedder, path: Path) -> str:
             [f"{doc_id}:{ordinal}", doc_id, ordinal, page, text, _text_hash(text), emb],
         )
     return "indexed" if chunk_rows else "empty"
+
+
+def backfill_internal(con) -> int:
+    """Re-derive the `internal` flag for every document from its rel_path.
+
+    Cheap (no re-embedding) and idempotent, so it runs on every build and keeps
+    the flag in sync when files are moved into/out of the Celonis-internal
+    collection. Returns the number of documents currently flagged internal.
+    """
+    base = f"Literature/{config.INTERNAL_COLLECTION}"
+    con.execute(
+        "UPDATE documents SET internal = (rel_path = ? OR starts_with(rel_path, ?))",
+        [base, base + "/"],
+    )
+    return con.execute("SELECT count(*) FROM documents WHERE internal").fetchone()[0]
 
 
 def prune_missing(con) -> int:
@@ -206,5 +226,6 @@ def build_index(con, embedder, roots, limit: int | None = None, reset: bool = Fa
         if result != "skip":
             print(f"[{result:7s}] {path.name}")
 
+    stats["internal"] = backfill_internal(con)
     dbmod.create_search_indexes(con)
     return stats

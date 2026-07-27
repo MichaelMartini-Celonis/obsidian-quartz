@@ -6,9 +6,18 @@ and a ``duckpgq`` property graph over all of it. The property graph powers the
 ``graph`` CLI queries (author papers, co-authors, keyword neighbours, paths) and
 graph-expanded retrieval.
 
-Node tables:  documents, authors, keywords, topics
+Node tables:  documents, authors, keywords, topics, companies
 Edge tables:  doc_authors (doc->author), doc_keywords (doc->keyword),
-              doc_topics (doc->topic), doc_similar (doc->doc)
+              doc_topics (doc->topic), doc_similar (doc->doc),
+              doc_companies (doc->company)
+
+The ``companies`` layer indexes non-research tooling: the vendor/tool/standards-body
+behind each imported blog post, piece of tool documentation, or specification. A
+document's company is derived from its library path — files filed under
+``Literature/Blogs/<Company>/``, ``Literature/Tool & Competitor Documentation/<Company>/``,
+``Literature/Source Systems Knowledge/<Company>/`` or ``Literature/Specifications/<Company>/``
+— so a vendor's blogs, dialect docs, source-system references and specifications
+collapse onto a single ``Company`` node.
 """
 
 from __future__ import annotations
@@ -17,6 +26,13 @@ import re
 import unicodedata
 
 PARTICLES = {"van", "der", "de", "den", "von", "la", "le", "du", "di", "dos"}
+
+# Library top-level folders whose immediate subfolder names a company/tool
+# (non-research tooling). The regex captures that subfolder from ``rel_path``.
+COMPANY_PATH_RE = (
+    r"^(?:\./)?(?:Literature/)?"
+    r"(?:Blogs|Tool & Competitor Documentation|Source Systems Knowledge|Specifications)/([^/]+)/"
+)
 
 
 def norm_name(name) -> str:
@@ -65,6 +81,10 @@ def init_graph_schema(con) -> None:
             topic_id BIGINT PRIMARY KEY, name TEXT UNIQUE)
     """)
     con.execute("""
+        CREATE TABLE IF NOT EXISTS companies (
+            company_id BIGINT PRIMARY KEY, name TEXT, name_norm TEXT UNIQUE)
+    """)
+    con.execute("""
         CREATE TABLE IF NOT EXISTS doc_authors (
             doc_id TEXT, author_id BIGINT, position INTEGER)
     """)
@@ -74,10 +94,12 @@ def init_graph_schema(con) -> None:
     """)
     con.execute("CREATE TABLE IF NOT EXISTS doc_topics (doc_id TEXT, topic_id BIGINT)")
     con.execute("CREATE TABLE IF NOT EXISTS doc_similar (doc_id TEXT, other_id TEXT, score DOUBLE)")
+    con.execute("CREATE TABLE IF NOT EXISTS doc_companies (doc_id TEXT, company_id BIGINT)")
 
 
 def _reset_graph_tables(con) -> None:
-    for t in ("doc_authors", "doc_keywords", "doc_topics", "authors", "keywords", "topics"):
+    for t in ("doc_authors", "doc_keywords", "doc_topics", "doc_companies",
+              "authors", "keywords", "topics", "companies"):
         con.execute(f"DELETE FROM {t}")
 
 
@@ -125,6 +147,36 @@ def build_entities(con) -> dict:
         WHERE d.topic IS NOT NULL AND d.topic <> ''
     """)
 
+    # Companies: derived from the library path for non-research tooling
+    # (Blogs/<Company>/… and Tool & Competitor Documentation/<Company>/…).
+    con.execute(
+        """
+        INSERT INTO companies (company_id, name, name_norm)
+        SELECT row_number() OVER (ORDER BY name_norm), name, name_norm FROM (
+            SELECT norm_name(c) AS name_norm, arg_min(c, c) AS name
+            FROM (
+                SELECT regexp_extract(rel_path, ?, 1) AS c
+                FROM documents WHERE rel_path IS NOT NULL
+            ) WHERE c <> '' AND norm_name(c) <> ''
+            GROUP BY norm_name(c)
+        )
+        """,
+        [COMPANY_PATH_RE],
+    )
+    con.execute(
+        """
+        INSERT INTO doc_companies (doc_id, company_id)
+        SELECT d.doc_id, co.company_id
+        FROM (
+            SELECT doc_id, regexp_extract(rel_path, ?, 1) AS c
+            FROM documents WHERE rel_path IS NOT NULL
+        ) d
+        JOIN companies co ON co.name_norm = norm_name(d.c)
+        WHERE d.c <> ''
+        """,
+        [COMPANY_PATH_RE],
+    )
+
     # Keywords come from enrichment (doc_enrichment.keywords[]), when present.
     has_enrich = con.execute(
         "SELECT count(*) FROM information_schema.tables WHERE table_name='doc_enrichment'"
@@ -152,7 +204,9 @@ def build_entities(con) -> dict:
         "authors": con.execute("SELECT count(*) FROM authors").fetchone()[0],
         "topics": con.execute("SELECT count(*) FROM topics").fetchone()[0],
         "keywords": con.execute("SELECT count(*) FROM keywords").fetchone()[0],
+        "companies": con.execute("SELECT count(*) FROM companies").fetchone()[0],
         "doc_authors": con.execute("SELECT count(*) FROM doc_authors").fetchone()[0],
+        "doc_companies": con.execute("SELECT count(*) FROM doc_companies").fetchone()[0],
     }
 
 
@@ -209,7 +263,8 @@ def ensure_property_graph(con) -> None:
             documents LABEL Document,
             authors   LABEL Author,
             keywords  LABEL Keyword,
-            topics    LABEL Topic
+            topics    LABEL Topic,
+            companies LABEL Company
         )
         EDGE TABLES (
             doc_authors  SOURCE KEY (doc_id)   REFERENCES documents (doc_id)
@@ -221,6 +276,9 @@ def ensure_property_graph(con) -> None:
             doc_topics   SOURCE KEY (doc_id)   REFERENCES documents (doc_id)
                          DESTINATION KEY (topic_id) REFERENCES topics (topic_id)
                          LABEL has_topic,
+            doc_companies SOURCE KEY (doc_id)  REFERENCES documents (doc_id)
+                         DESTINATION KEY (company_id) REFERENCES companies (company_id)
+                         LABEL by_company,
             doc_similar  SOURCE KEY (doc_id)   REFERENCES documents (doc_id)
                          DESTINATION KEY (other_id) REFERENCES documents (doc_id)
                          LABEL similar_to
@@ -268,6 +326,33 @@ def coauthors(con, name: str, limit: int = 25):
             COLUMNS (b.name AS coauthor))
         SELECT coauthor, count(*) AS shared_papers
         GROUP BY coauthor ORDER BY shared_papers DESC LIMIT {int(limit)}
+        """
+    ).fetchall()
+
+
+def companies(con, limit: int = 100):
+    """List indexed companies/tools with their document counts."""
+    return con.execute(
+        """
+        SELECT co.name, count(*) AS docs
+        FROM companies co JOIN doc_companies dc USING (company_id)
+        GROUP BY co.name ORDER BY docs DESC, co.name LIMIT ?
+        """,
+        [int(limit)],
+    ).fetchall()
+
+
+def docs_by_company(con, name: str, limit: int = 40):
+    ensure_property_graph(con)
+    nn = _lit(norm_name(name))
+    return con.execute(
+        f"""
+        FROM GRAPH_TABLE (kg
+            MATCH (d:Document)-[e:by_company]->(c:Company)
+            WHERE c.name_norm = {nn}
+            COLUMNS (d.title AS title, d.rel_path AS rel_path, d.topic AS topic))
+        SELECT DISTINCT title, topic, rel_path ORDER BY topic, title
+        LIMIT {int(limit)}
         """
     ).fetchall()
 

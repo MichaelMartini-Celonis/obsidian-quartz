@@ -23,11 +23,12 @@ from .embeddings import get_embedder
 def _roots(names: list[str] | None):
     mapping = {
         "literature": config.LITERATURE_DIR,
+        "transcripts": config.TRANSCRIPTS_DIR,
         "outbox": config.OUTBOX_DIR,
         "inbox": config.INBOX_DIR,
     }
     if not names:
-        return [config.LITERATURE_DIR, config.OUTBOX_DIR]
+        return [config.LITERATURE_DIR, config.TRANSCRIPTS_DIR, config.OUTBOX_DIR]
     return [mapping[n] for n in names]
 
 
@@ -48,10 +49,13 @@ def cmd_index(args) -> int:
 
 
 def cmd_search(args) -> int:
+    internal = True if args.internal_only else (False if args.external_only else None)
     embedder = get_embedder()
     con = dbmod.connect(read_only=True)
     try:
-        results = querymod.search(con, embedder, args.query, k=args.k, expand=args.expand)
+        results = querymod.search(
+            con, embedder, args.query, k=args.k, expand=args.expand, internal=internal
+        )
     finally:
         con.close()
     if not results:
@@ -59,7 +63,12 @@ def cmd_search(args) -> int:
         return 0
     for i, r in enumerate(results, 1):
         loc = f"p.{r.page}" if r.page else ""
-        tag = "  (via graph)" if r.via == "graph" else ""
+        tags = []
+        if r.internal:
+            tags.append("internal")
+        if r.via == "graph":
+            tags.append("via graph")
+        tag = f"  ({', '.join(tags)})" if tags else ""
         print(f"\n{i}. {r.title}  [{r.topic}] {loc}{tag}")
         print(f"   {r.rel_path}")
         print(f"   {r.snippet}")
@@ -96,11 +105,23 @@ def cmd_graph(args) -> int:
             for name, n in graphmod.coauthors(con, args.author):
                 print(f"  {n:3d}  {name}")
             return 0
+        if args.company is not None:
+            if args.company == "":
+                print("Companies / tools (by document count):")
+                for name, n in graphmod.companies(con):
+                    print(f"  {n:4d}  {name}")
+                return 0
+            print(f"Documents for company '{args.company}':")
+            for title, topic, rel_path in graphmod.docs_by_company(con, args.company):
+                print(f"  [{topic}] {title}\n      {rel_path}")
+            return 0
         # Default: summary counts.
         for label, table in (("documents", "documents"), ("authors", "authors"),
                              ("keywords", "keywords"), ("topics", "topics"),
+                             ("companies", "companies"),
                              ("author edges", "doc_authors"),
                              ("keyword edges", "doc_keywords"),
+                             ("company edges", "doc_companies"),
                              ("similar edges", "doc_similar")):
             try:
                 n = con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
@@ -120,6 +141,9 @@ def cmd_stats(args) -> int:
         review = con.execute(
             "SELECT count(*) FROM documents WHERE needs_review"
         ).fetchone()[0]
+        internal = con.execute(
+            "SELECT count(*) FROM documents WHERE internal"
+        ).fetchone()[0]
         by_topic = con.execute(
             "SELECT topic, count(*) FROM documents GROUP BY topic ORDER BY 2 DESC LIMIT 15"
         ).fetchall()
@@ -130,6 +154,7 @@ def cmd_stats(args) -> int:
     print(f"documents: {docs}")
     print(f"chunks:    {chunks}")
     print(f"needs_review: {review}")
+    print(f"internal (Celonis): {internal}")
     print(f"embedder:  {model[0] if model else '?'} (dim {dim[0] if dim else '?'})")
     print("top topics:")
     for topic, n in by_topic:
@@ -142,7 +167,8 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_index = sub.add_parser("index", help="ingest files into the index")
-    p_index.add_argument("--roots", nargs="*", choices=["literature", "outbox", "inbox"])
+    p_index.add_argument("--roots", nargs="*",
+                         choices=["literature", "transcripts", "outbox", "inbox"])
     p_index.add_argument("--limit", type=int, default=None, help="max files to process")
     p_index.add_argument("--reset", action="store_true", help="drop and rebuild the index")
     p_index.set_defaults(func=cmd_index)
@@ -152,6 +178,11 @@ def main(argv=None) -> int:
     p_search.add_argument("-k", type=int, default=10)
     p_search.add_argument("--expand", action="store_true",
                           help="add graph-expanded (related) results")
+    g_internal = p_search.add_mutually_exclusive_group()
+    g_internal.add_argument("--internal-only", action="store_true",
+                            help="only Celonis-internal documents")
+    g_internal.add_argument("--external-only", action="store_true",
+                            help="exclude Celonis-internal documents")
     p_search.set_defaults(func=cmd_search)
 
     p_enrich = sub.add_parser("enrich", help="LLM-clean metadata via the AI Gateway")
@@ -165,6 +196,8 @@ def main(argv=None) -> int:
     p_graph.add_argument("--build", action="store_true", help="(re)build graph tables + property graph")
     p_graph.add_argument("--similar-k", type=int, default=8, help="SIMILAR_TO neighbours per doc")
     p_graph.add_argument("--author", help="show papers and co-authors for an author")
+    p_graph.add_argument("--company", nargs="?", const="", default=None,
+                         help="list companies (no value) or documents for a company/tool")
     p_graph.set_defaults(func=cmd_graph)
 
     p_stats = sub.add_parser("stats", help="index statistics")

@@ -11,6 +11,7 @@ Run:  python3 scripts/import-downloads.py   (from ~/docs)
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -100,6 +101,31 @@ CLASSIFICATION_RULES: list[tuple[str, list[str]]] = [
     ("Engineering", [
         "software design", "philosophy of software",
     ]),
+]
+
+
+# --- Celonis-internal detection --------------------------------------------
+# Docs matching these land in the "Celonis Internal/" collection, which the
+# search index flags as internal. Office exports (Google Docs/Slides/Sheets)
+# are treated as internal working material; PDFs need a strong Celonis codename
+# so genuine external literature that merely mentions Celonis stays external.
+CELONIS_INTERNAL_DIR = "Celonis Internal"
+OFFICE_INTERNAL_SUFFIXES = {".docx", ".pptx", ".xlsx"}
+# Celonis internal codenames / phrases. Matched with word boundaries (see
+# is_celonis_internal) so short tokens like "wvda" no longer match unrelated
+# words such as "wvdaalst" (van der Aalst's email in *public* papers).
+STRONG_CELONIS_MARKERS = [
+    "pig-sl", "pigsl", "pi graph", "pig level", "pig packages", "pig boxes",
+    "pig data team", "saola", "celosphere", "ems 2.0", "ems2.0",
+    "cpm meta model", "core meta model", "ccmm", "yet another celonis",
+    "yet-another-ccmm", "charkha", "arcline", "relayering",
+    "knowledge layer glossary", "pma-wvda", "etot", "comp-gateway", "slides-ems",
+]
+# Terms that also appear in *public* papers by Celonis-affiliated authors, e.g.
+# van der Aalst ("execution management") or Polyvyanyy's academic "PQL" /
+# Process Query Language. Only treat them as internal when "celonis" is present.
+CELONIS_WEAK_MARKERS = [
+    "pql", "object-centrism", "consistent ocdm", "execution management",
 ]
 
 
@@ -303,14 +329,18 @@ def extract_epub_biblio(path: Path) -> Biblio:
 
 def extract_biblio(path: Path) -> Biblio:
     ext = path.suffix.lower()
-    if ext == ".pdf":
-        return extract_pdf_biblio(path)
-    if ext == ".docx":
-        return extract_docx_biblio(path)
-    if ext == ".ipynb":
-        return extract_ipynb_biblio(path)
-    if ext == ".epub":
-        return extract_epub_biblio(path)
+    try:
+        if ext == ".pdf":
+            return extract_pdf_biblio(path)
+        if ext == ".docx":
+            return extract_docx_biblio(path)
+        if ext == ".ipynb":
+            return extract_ipynb_biblio(path)
+        if ext == ".epub":
+            return extract_epub_biblio(path)
+    except Exception as exc:  # noqa: BLE001 — corrupt/truncated file: don't abort the batch
+        print(f"  ! biblio extraction failed for {path.name}: "
+              f"{type(exc).__name__}: {exc}; falling back to filename")
     return Biblio(title=path.stem.replace("_", " "), authors=[])
 
 
@@ -339,6 +369,41 @@ def classify(path: Path, biblio: Biblio) -> str:
     return "Inbox"
 
 
+def _internal_text_sample(path: Path) -> str:
+    """A small text sample used to spot Celonis codenames (best-effort)."""
+    try:
+        ext = path.suffix.lower()
+        if ext == ".pdf":
+            reader = PdfReader(str(path))
+            meta = reader.metadata or {}
+            # Slide-deck PDFs often carry no extractable body text but keep the
+            # Celonis codename in the document metadata (title/author/subject).
+            meta_text = " ".join(
+                str(meta.get(k, "")) for k in ("/Title", "/Author", "/Subject", "/Keywords")
+            )
+            return (meta_text + " " + (reader.pages[0].extract_text() or ""))[:3000]
+        if ext == ".docx":
+            doc = Document(str(path))
+            return " ".join(p.text for p in doc.paragraphs[:40])
+    except Exception:
+        pass
+    return ""
+
+
+def is_celonis_internal(path: Path) -> bool:
+    haystack = f"{path.name} {_internal_text_sample(path)}".lower()
+
+    def has(term: str) -> bool:
+        # Word-boundary match so "wvda" no longer matches "wvdaalst", etc.
+        return re.search(rf"(?<![\w-]){re.escape(term)}(?![\w-])", haystack) is not None
+
+    if any(has(m) for m in STRONG_CELONIS_MARKERS):
+        return True
+    if "celonis" in haystack and any(has(w) for w in CELONIS_WEAK_MARKERS):
+        return True
+    return path.suffix.lower() in OFFICE_INTERNAL_SUFFIXES
+
+
 def unique_path(dest: Path) -> Path:
     if not dest.exists():
         return dest
@@ -351,11 +416,26 @@ def unique_path(dest: Path) -> Path:
         n += 1
 
 
-def find_duplicate_in_literature(path: Path) -> Path | None:
+def file_sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def find_duplicate_in_literature(path: Path, src_hash: str) -> Path | None:
+    """Return an existing Literature file that is byte-identical to *path*.
+
+    Size is a cheap pre-filter; a SHA-256 comparison then *confirms* the match,
+    so unrelated files that merely share a byte count (e.g. a short markdown
+    note vs. a blog post) are no longer treated as duplicates and deleted.
+    """
     size = path.stat().st_size
     for candidate in LITERATURE_DIR.rglob("*"):
         if candidate.is_file() and candidate.stat().st_size == size:
-            return candidate
+            if file_sha256(candidate) == src_hash:
+                return candidate
     return None
 
 
@@ -381,34 +461,41 @@ def collect_inbox_files() -> list[Path]:
 
 def import_inbox() -> list[str]:
     logs: list[str] = []
-    seen_sizes: dict[int, str] = {}
+    seen_hashes: dict[str, str] = {}
 
     for src in collect_inbox_files():
-        size = src.stat().st_size
-        if size in seen_sizes:
+        src_hash = file_sha256(src)
+        if src_hash in seen_hashes:
             src.unlink()
-            logs.append(f"[skip-dup-batch] {src.name} (same size as {seen_sizes[size]})")
+            logs.append(f"[skip-dup-batch] {src.name} (identical to {seen_hashes[src_hash]})")
             continue
 
-        existing = find_duplicate_in_literature(src)
+        existing = find_duplicate_in_literature(src, src_hash)
         if existing:
             src.unlink()
             logs.append(f"[skip-dup-lit] {src.name} -> Literature/{existing.relative_to(LITERATURE_DIR)}")
             continue
 
-        biblio = extract_biblio(src)
-        folder = classify(src, biblio)
-        dest_dir = LITERATURE_DIR / folder
-        dest_dir.mkdir(parents=True, exist_ok=True)
-
-        if src.suffix.lower() in {".pdf", ".docx", ".epub"} and " - " not in src.stem:
-            filename = literature_filename(biblio, src.suffix)
-        else:
+        if is_celonis_internal(src):
+            # Internal working docs keep their (meaningful) original filename and
+            # form their own collection, which the index flags as internal.
+            folder = CELONIS_INTERNAL_DIR
+            dest_dir = LITERATURE_DIR / folder
+            dest_dir.mkdir(parents=True, exist_ok=True)
             filename = slugify_filename(src.stem) + src.suffix.lower()
+        else:
+            biblio = extract_biblio(src)
+            folder = classify(src, biblio)
+            dest_dir = LITERATURE_DIR / folder
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            if src.suffix.lower() in {".pdf", ".docx", ".epub"} and " - " not in src.stem:
+                filename = literature_filename(biblio, src.suffix)
+            else:
+                filename = slugify_filename(src.stem) + src.suffix.lower()
 
         dest = unique_path(dest_dir / filename)
         shutil.move(str(src), str(dest))
-        seen_sizes[size] = dest.name
+        seen_hashes[src_hash] = dest.name
         logs.append(
             f"[{folder}] {src.name} -> Literature/{dest.relative_to(LITERATURE_DIR)}"
         )

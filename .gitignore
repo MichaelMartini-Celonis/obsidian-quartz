@@ -12,6 +12,9 @@ Literature/
 Inbox/*
 !Inbox/README.md
 
+# YouTube video transcripts — fetched/generated via scripts/import-youtube.py.
+Transcripts/
+
 # Python tooling
 scripts/.venv/
 scripts/credentials.json

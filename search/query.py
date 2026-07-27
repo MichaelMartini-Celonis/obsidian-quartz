@@ -18,6 +18,7 @@ class Result:
     score: float
     snippet: str
     via: str = "hybrid"  # "hybrid" (vector+BM25) or "graph" (expansion)
+    internal: bool = False
 
 
 def _vector_hits(con, query_emb, dim, pool):
@@ -49,10 +50,10 @@ def _bm25_hits(con, query, pool):
 
 
 def _row_to_result(row, score, via):
-    _, doc_id, title, rel_path, topic, page, text = row
+    _, doc_id, title, rel_path, topic, page, text, internal = row
     snippet = " ".join((text or "").split())[:300]
     return Result(row[0], doc_id, title or "(untitled)", rel_path, topic or "",
-                  page or 0, score, snippet, via)
+                  page or 0, score, snippet, via, bool(internal))
 
 
 def _has_graph(con) -> bool:
@@ -101,7 +102,7 @@ def _graph_expand(con, embedder, query_emb, seed_scores: dict, exclude: set, lim
             continue
         row = con.execute(
             f"""
-            SELECT c.chunk_id, c.doc_id, d.title, d.rel_path, d.topic, c.page, c.text
+            SELECT c.chunk_id, c.doc_id, d.title, d.rel_path, d.topic, c.page, c.text, d.internal
             FROM chunks c JOIN documents d USING (doc_id)
             WHERE c.doc_id = ?
             ORDER BY array_cosine_distance(c.embedding, ?::FLOAT[{dim}]) LIMIT 1
@@ -116,8 +117,11 @@ def _graph_expand(con, embedder, query_emb, seed_scores: dict, exclude: set, lim
 
 
 def search(con, embedder, query: str, k: int = 10, pool: int | None = None,
-           expand: bool = False) -> list[Result]:
+           expand: bool = False, internal: bool | None = None) -> list[Result]:
     pool = pool or max(k * 5, 50)
+    # Restrict the candidate pool to internal / external docs when filtering.
+    if internal is not None:
+        pool = max(pool, k * 20)
     embed_query = getattr(embedder, "embed_query", None)
     query_emb = embed_query(query) if callable(embed_query) else embedder.embed([query])[0]
 
@@ -134,12 +138,22 @@ def search(con, embedder, query: str, k: int = 10, pool: int | None = None,
     if not fused:
         return []
 
+    if internal is not None:
+        allowed = {
+            r[0] for r in con.execute(
+                "SELECT doc_id FROM documents WHERE internal = ?", [internal]
+            ).fetchall()
+        }
+        fused = {cid: info for cid, info in fused.items() if info["doc_id"] in allowed}
+        if not fused:
+            return []
+
     top = sorted(fused.items(), key=lambda kv: -kv[1]["score"])[:k]
     ids = [cid for cid, _ in top]
     placeholders = ",".join(["?"] * len(ids))
     rows = con.execute(
         f"""
-        SELECT c.chunk_id, c.doc_id, d.title, d.rel_path, d.topic, c.page, c.text
+        SELECT c.chunk_id, c.doc_id, d.title, d.rel_path, d.topic, c.page, c.text, d.internal
         FROM chunks c JOIN documents d USING (doc_id)
         WHERE c.chunk_id IN ({placeholders})
         """,

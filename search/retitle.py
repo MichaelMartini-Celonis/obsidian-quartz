@@ -147,6 +147,14 @@ def plan(con, rename_all: bool = False) -> list[tuple[str, Path, Path]]:
         # title when we have no author to anchor it.
         if not author_label(authors) and _FRONTMATTER_RE.search(title):
             continue
+        # Guard: for author-less docs, skip if the new name is just a less-informative
+        # substring of the current one (e.g. book chapters, where the current filename
+        # keeps the book title as context and the enriched title is only the chapter).
+        if not author_label(authors):
+            cur_norm = re.sub(r"[^a-z0-9]", "", cur_stem.lower())
+            des_norm = re.sub(r"[^a-z0-9]", "", des.lower())
+            if des_norm and des_norm in cur_norm:
+                continue
         # Guard: proceedings split papers ("NN - Title") with no recovered author  - 
         # keep the paper title rather than dropping to a bare (possibly generic) title.
         if not author_label(authors) and "(papers)" in str(src.parent) and re.match(r"^\d+\s*-\s", cur_stem):

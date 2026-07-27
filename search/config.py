@@ -18,8 +18,24 @@ SEARCH_DIR = Path(__file__).resolve().parent
 LITERATURE_DIR = DOCS_ROOT / "Literature"
 INBOX_DIR = DOCS_ROOT / "Inbox"
 OUTBOX_DIR = DOCS_ROOT / "Outbox"
+# YouTube (and other) video transcripts, imported via scripts/import-youtube.py.
+# A first-class search root so transcripts are indexed alongside the papers.
+TRANSCRIPTS_DIR = DOCS_ROOT / "Transcripts"
 
 DB_PATH = Path(os.environ.get("SEARCH_DB", str(SEARCH_DIR / "index.duckdb")))
+
+# Documents under this Literature sub-collection are flagged as Celonis-internal
+# (non-public working material) in the index. Internal-ness is a property of
+# where a file lives, so it can be re-flagged simply by moving the file and
+# re-indexing. The importer routes detected internal docs here.
+INTERNAL_COLLECTION = "Celonis Internal"
+INTERNAL_DIR = LITERATURE_DIR / INTERNAL_COLLECTION
+
+
+def is_internal_rel_path(rel_path: str) -> bool:
+    """True if a document rel_path belongs to the Celonis-internal collection."""
+    prefix = f"Literature/{INTERNAL_COLLECTION}/"
+    return rel_path == f"Literature/{INTERNAL_COLLECTION}" or rel_path.startswith(prefix)
 
 # File types we ingest. Others are ignored.
 IMPORT_SUFFIXES = {".pdf", ".docx", ".md", ".txt", ".ipynb", ".bpmn", ".epub", ".pptx"}

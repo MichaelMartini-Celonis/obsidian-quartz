@@ -52,9 +52,14 @@ def init_schema(con, dim: int) -> None:
             n_chunks INTEGER,
             extraction_confidence DOUBLE,
             needs_review BOOLEAN,
+            internal BOOLEAN DEFAULT FALSE,
             indexed_at TIMESTAMP
         )
         """
+    )
+    # Migration for pre-existing indexes created before the `internal` flag.
+    con.execute(
+        "ALTER TABLE documents ADD COLUMN IF NOT EXISTS internal BOOLEAN DEFAULT FALSE"
     )
     con.execute(
         f"""

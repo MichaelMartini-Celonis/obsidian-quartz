@@ -56,6 +56,17 @@ The main research collection, organized into topic folders. Key top-level areas:
 
 Naming convention: `Author et al. - Title.pdf`.
 
+Beyond the research corpus, the library also holds **non-research tooling** material —
+company/tool blog posts under `Blogs/<Company>/`, third-party product documentation under
+`Tool & Competitor Documentation/<Company>/` (SQL dialects and data-platform foundations),
+**source-system knowledge** under `Source Systems Knowledge/<Company>/` (ERP/source-system table
+and schema references, e.g. SAP data-dictionary tables and Oracle Fusion interface tables), and
+**specifications** under `Specifications/<Org>/` (standards & ontologies — e.g. OMG BPMN/CMMN/DMN,
+W3C RDF & OWL, OntoUML, BFO, gist). These are grouped by company/org so the search engine's
+knowledge graph can attach a `Company` node (`search graph --company` lists them) — a vendor's
+blogs, dialect docs, source-system tables and specifications collapse onto the same node.
+See `scripts/import-blogs.py` and `scripts/import-docs.py`.
+
 ### `reference/context-model-documentation/`
 Independent local checkout of https://github.com/celonis/context-model-documentation — the
 directional wiki for the Context Model project (codename `pig-sl`): vision, architecture, component
@@ -78,6 +89,8 @@ Python tooling lives in `scripts/` (virtualenv at `scripts/.venv/`):
 |---|---|
 | `scripts/.venv/bin/python scripts/import-downloads.py` | Import + classify + rename files dropped in `Inbox/` into `Literature/` (de-duplicates against the library). |
 | `scripts/.venv/bin/python scripts/import-web-book.py` | Import free online HTML books (e.g. the Google SRE books) into `Literature/` as markdown (`--list` / `--only KEY`). |
+| `scripts/.venv/bin/python scripts/import-blogs.py` | Import competitor/tool **blog** posts into `Literature/Blogs/<Company>/` (drops changelogs/release/PR posts). Registry of sources; `--list` / `--only KEY` / `--dry-run`. |
+| `scripts/.venv/bin/python scripts/import-docs.py` | Build curated third-party doc collections (**Tool & Competitor Documentation** for SQL dialects; **Source Systems Knowledge** for ERP/source-system table references; **Specifications** for standards & ontologies) as one consolidated markdown file per source. Discovery via `llms_full` / `sitemap` / `crawl` / `toc` / `pages` / `git`. `--list` / `--only KEY` / `--dry-run` / `--force`. |
 | `scripts/.venv/bin/python scripts/package-data.py` | Package the DuckDB search index + `Literature/` into the companion **Git LFS** data repo (`init` / `pack` / `push` / `restore` / `status`). |
 
 ### Companion data repo (`~/docs-data`, Git LFS)
