@@ -15,6 +15,12 @@ Inbox/*
 # YouTube video transcripts — fetched/generated via scripts/import-youtube.py.
 Transcripts/
 
+# Jupyter notebooks collected out of the library into their own top-level root.
+notebooks/
+
+# Outbox — authored working drafts/artifacts; pushed to their own repos, not tracked here.
+Outbox/
+
 # Python tooling
 scripts/.venv/
 scripts/credentials.json
