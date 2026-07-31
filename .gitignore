@@ -18,6 +18,9 @@ Transcripts/
 # Jupyter notebooks collected out of the library into their own top-level root.
 notebooks/
 
+# Database-system reference pages (dbdb.io mirror) — generated via scripts/dbdb-systems.py.
+db_systems/
+
 # Outbox — authored working drafts/artifacts; pushed to their own repos, not tracked here.
 Outbox/
 

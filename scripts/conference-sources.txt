@@ -1,0 +1,98 @@
+# Conference paper sources for the paper harvesters.
+#
+# Each conference is harvested by a dedicated script that discovers the accepted
+# papers, decides which have a freely/legally downloadable copy, and drops the
+# PDFs into Inbox/<conf-year>/ (from where import-downloads.py files them into
+# Literature/). Lines starting with '#' are ignored.
+#
+# Format (one entry per block):
+#   conf   = <short name>
+#   years  = <years covered>
+#   list   = <URL(s) of the accepted-papers listing>
+#   method = <how open-access / preprint availability is determined>
+#   script = <harvester in scripts/>
+#   out    = <Inbox output folder>
+
+conf   = SIGMOD
+years  = 2024, 2025, 2026
+list   = DBLP TOCs — PACMMOD vols 1-4 (research, filtered to "SIGMOD Conference <year>", PODS excluded)
+         + conf/sigmod/sigmod<year>c (industry / demo / tutorial / etc.)
+method = arXiv API title match (fuzzy title ratio + author-surname confirmation)
+script = scripts/sigmod-arxiv.py   (gather | match | download | all)
+out    = Inbox/sigmod-arxiv/<year>/<track>/
+
+conf   = CAIS
+years  = 2026
+list   = https://www.caisconf.org/program/2026/papers/  (per-paper pages carry the ACM DOI)
+method = Unpaywall DOI lookup -> Open Access on ACM (gold/hybrid/bronze); PDF from
+         ACM Digital Library, arXiv fallback for OA papers ACM serves behind Cloudflare
+script = scripts/cais-acm.py        (gather | oa | download | all)
+out    = Inbox/cais-2026/<pillar>/
+
+# --- Academic chairs / research groups (not a conference; a group's own pub list) ---
+
+conf   = TUM BPM  (Chair of Information Systems and Business Process Management, Rinderle-Ma)
+years  = 2002-2026 (full list; --since YEAR to scope)
+list   = https://www.cs.cit.tum.de/bpm/publications/  (per-year <h3 id="YYYY"> sections,
+         each entry a <dd> with an optional "Author's Version [PDF]" link on the chair's
+         Zotero host i17vm1.in.tum.de)
+method = parse the publications HTML; download only entries that expose an author-version PDF
+script = scripts/tum-bpm.py         (gather | download | all)
+out    = Inbox/tum-bpm/<year>/
+
+conf   = CMU Database Group  (Andy Pavlo et al.)
+years  = 1981-2026 (full list; --since YEAR to scope)
+list   = https://db.cs.cmu.edu/publications/  (each <li class="citation"> exposes a
+         self-hosted "PDF" download button + a bibtex block with doi/url)
+method = parse the HTML for the direct PDF link; skip titles already in the search
+         index (search/index.duckdb); --no-dedup to ignore the index
+script = scripts/cmu-db-group.py    (gather | download | all)
+out    = Inbox/cmu-db-group/<year>/
+
+conf   = CMU course-papers  (open Apache autoindex reading lists, e.g. Ailamaki 15-721)
+years  = classic DB literature (mostly 1970s-2000s)
+list   = https://www.cs.cmu.edu/~natassa/courses/15-721/papers/  (--url to add more)
+method = crawl the "Index of ..." autoindex for every *.pdf; after download read the
+         PDF's first page for a title and drop anything already in the search index
+script = scripts/cmu-course-papers.py   (gather | download | all)
+out    = Inbox/cmu-course-papers/<label>/
+
+conf   = Luna Dong reading list  (classic database reading list; citations only)
+years  = classic DB literature (1970-2005)
+list   = https://web.archive.org/web/20250419115646/https://lunadong.com/resources
+method = parse citations (author/title/venue/year/start-page); skip titles already
+         indexed; best-effort resolve a free PDF via (1) the CMU course-papers
+         catalog matched on (first-author surname, ACM start-page) -> p<page>-<name>.pdf,
+         (2) DBLP electronic edition, (3) Unpaywall DOI, (4) arXiv title search
+script = scripts/lunadong-reading-list.py   (gather | resolve [--limit N] | download | all)
+out    = Inbox/lunadong/<section>/
+
+conf   = TU Berlin DIMA  (Database Systems and Information Management, Volker Markl)
+years  = ~2002-2026 (full list; --since YEAR to scope)
+list   = https://www.tu.berlin/dima/forschung/publikationen  (TYPO3 tx_publications
+         plugin; 25 pubs/page across ~15 pages, each an <div class="item"> with a
+         <i>Title</i>, DOI, and a self-hosted "Datei" PDF link; crawled via the
+         <li class="next"> pagination link, each page carrying its own cHash)
+method = parse each page's citation-content for the direct PDF link; skip titles
+         already in the search index; --no-dedup to ignore the index
+script = scripts/tuberlin-dima.py   (gather | download | all)
+out    = Inbox/tuberlin-dima/<year>/
+
+conf   = rxin/db-readings  (Reynold Xin's classic DB reading list + a list of lists)
+years  = classic + modern DB literature
+list   = https://github.com/rxin/db-readings  (README.md). In-repo papers link to
+         papers/<file>.pdf (hosted in the repo). The "External Reading Lists"
+         (#external) section links to other schools' lists (Berkeley/Brown/Stanford/
+         MIT/Wisconsin/CMU) — a list of lists.
+method = download in-repo PDFs directly from raw.githubusercontent.com; for each
+         external list do a best-effort crawl (direct .pdf/arXiv links downloaded;
+         descriptive titles resolved via DBLP/Unpaywall/arXiv; Google Sheets read via
+         CSV export). Dedup against the search index; --no-external to skip the lists
+script = scripts/rxin-db-readings.py   (gather | resolve [--limit N] | download | all)
+out    = Inbox/db-readings/<section>/
+
+# --- Shared helper -----------------------------------------------------------
+# scripts/paperfetch.py: common requests session + resilient PDF downloader,
+# title-normalisation / author-surname helpers, IndexDedup (checks a title
+# against search/index.duckdb), and metadata->PDF resolvers (DBLP / Unpaywall /
+# arXiv). Imported by the harvesters above.

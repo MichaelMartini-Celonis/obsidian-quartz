@@ -89,3 +89,23 @@ https://www.youtube.com/watch?v=jsO1KXQL0jg
 https://www.youtube.com/watch?v=NbiM8hvaKVg
 https://www.youtube.com/watch?v=UnBubqpztz0
 https://www.youtube.com/watch?v=sns1FsqkZ0I
+
+# --- added 2026-07-27: standalone videos ---
+https://www.youtube.com/watch?v=r4-p66GoqyE
+https://www.youtube.com/watch?v=gui_SE8rJUM
+
+# --- added 2026-07-29: Knowledge Graph Conference channel + standalone video ---
+https://www.youtube.com/@theknowledgegraphconference/videos
+https://www.youtube.com/watch?v=yUmDRxV0krg
+
+# --- added 2026-07-30: Palantir AI FDE (agent-as-builder/discoverer reference for lit review) ---
+https://www.youtube.com/watch?v=SDqkGVuL1b8
+https://www.youtube.com/watch?v=pyudERNI1Qo
+
+# --- added 2026-07-30: Palantir Developers channel ---
+https://www.youtube.com/@palantirdevelopers
+
+# --- added 2026-07-30: standalone videos ---
+https://www.youtube.com/watch?v=cLOD5f-q0as
+https://www.youtube.com/watch?v=zSn8il5Mo5s
+https://www.youtube.com/watch?v=z8L202FlmD4

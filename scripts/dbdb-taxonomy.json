@@ -1,0 +1,1565 @@
+{
+  "source": "https://github.com/cmu-db/dbdb.io/tree/master/data/fixtures",
+  "site": "https://dbdb.io",
+  "categories": [
+    "Data & Storage",
+    "Query Processing",
+    "Transactions & Recovery",
+    "Distributed Architecture"
+  ],
+  "features": {
+    "Query Processing": [
+      {
+        "slug": "joins",
+        "label": "Joins",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "broadcast-join",
+            "value": "Broadcast Join"
+          },
+          {
+            "slug": "hash-join",
+            "value": "Hash Join"
+          },
+          {
+            "slug": "index-nested-loop-join",
+            "value": "Index Nested Loop Join"
+          },
+          {
+            "slug": "nested-loop-join",
+            "value": "Nested Loop Join"
+          },
+          {
+            "slug": "not-supported",
+            "value": "Not Supported"
+          },
+          {
+            "slug": "semi-join",
+            "value": "Semi Join"
+          },
+          {
+            "slug": "shuffle-join",
+            "value": "Shuffle Join"
+          },
+          {
+            "slug": "sort-merge-join",
+            "value": "Sort-Merge Join"
+          },
+          {
+            "slug": "worst-case-optimal-join",
+            "value": "Worst-Case Optimal Join"
+          }
+        ]
+      },
+      {
+        "slug": "parallel-execution",
+        "label": "Parallel Execution",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "bushy",
+            "value": "Bushy"
+          },
+          {
+            "slug": "inter-operator",
+            "value": "Inter-Operator (Vertical)"
+          },
+          {
+            "slug": "intra-operator",
+            "value": "Intra-Operator (Horizontal)"
+          }
+        ]
+      },
+      {
+        "slug": "query-compilation",
+        "label": "Query Compilation",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "code-generation",
+            "value": "Code Generation"
+          },
+          {
+            "slug": "jit-compilation",
+            "value": "JIT Compilation"
+          },
+          {
+            "slug": "not-supported",
+            "value": "Not Supported"
+          },
+          {
+            "slug": "stored-procedure-compilation",
+            "value": "Stored Procedure Compilation"
+          }
+        ]
+      },
+      {
+        "slug": "query-execution",
+        "label": "Query Execution",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "materialized-model",
+            "value": "Materialized Model"
+          },
+          {
+            "slug": "tuple-at-a-time-model",
+            "value": "Tuple-at-a-Time Model"
+          },
+          {
+            "slug": "vectorized-model",
+            "value": "Vectorized Model"
+          }
+        ]
+      },
+      {
+        "slug": "query-interface",
+        "label": "Query Interface",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "command-line-shell",
+            "value": "Command-line / Shell"
+          },
+          {
+            "slug": "custom-api",
+            "value": "Custom API"
+          },
+          {
+            "slug": "cypher",
+            "value": "Cypher"
+          },
+          {
+            "slug": "datalog",
+            "value": "Datalog"
+          },
+          {
+            "slug": "graphql",
+            "value": "GraphQL"
+          },
+          {
+            "slug": "gremlin",
+            "value": "Gremlin"
+          },
+          {
+            "slug": "http-rest",
+            "value": "HTTP / REST"
+          },
+          {
+            "slug": "partiql",
+            "value": "PartiQL"
+          },
+          {
+            "slug": "plsql",
+            "value": "PL/SQL"
+          },
+          {
+            "slug": "promql",
+            "value": "PromQL"
+          },
+          {
+            "slug": "quel",
+            "value": "QUEL"
+          },
+          {
+            "slug": "rdfs",
+            "value": "RDFS++"
+          },
+          {
+            "slug": "rpc",
+            "value": "RPC"
+          },
+          {
+            "slug": "sparql",
+            "value": "SPARQL"
+          },
+          {
+            "slug": "sql",
+            "value": "SQL"
+          },
+          {
+            "slug": "stored-procedures",
+            "value": "Stored Procedures"
+          },
+          {
+            "slug": "xpath",
+            "value": "XPath"
+          },
+          {
+            "slug": "xquery",
+            "value": "XQuery"
+          }
+        ]
+      },
+      {
+        "slug": "stored-procedures",
+        "label": "Stored Procedures",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "not-supported",
+            "value": "Not Supported"
+          },
+          {
+            "slug": "supported",
+            "value": "Supported"
+          }
+        ]
+      },
+      {
+        "slug": "user-defined-functions",
+        "label": "User-Defined Functions",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "custom",
+            "value": "Custom Language"
+          },
+          {
+            "slug": "java",
+            "value": "Java"
+          },
+          {
+            "slug": "javascript",
+            "value": "Javascript"
+          },
+          {
+            "slug": "perl",
+            "value": "Perl"
+          },
+          {
+            "slug": "php",
+            "value": "PHP"
+          },
+          {
+            "slug": "pl-sql",
+            "value": "PL/SQL"
+          },
+          {
+            "slug": "python",
+            "value": "Python"
+          },
+          {
+            "slug": "r",
+            "value": "R"
+          },
+          {
+            "slug": "ruby",
+            "value": "Ruby"
+          },
+          {
+            "slug": "rust",
+            "value": "Rust"
+          },
+          {
+            "slug": "t-sql",
+            "value": "T-SQL"
+          },
+          {
+            "slug": "tcl",
+            "value": "TCL"
+          }
+        ]
+      },
+      {
+        "slug": "views",
+        "label": "Views",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "materialized-views",
+            "value": "Materialized Views"
+          },
+          {
+            "slug": "not-supported",
+            "value": "Not Supported"
+          },
+          {
+            "slug": "virtual-views",
+            "value": "Virtual Views"
+          }
+        ]
+      }
+    ],
+    "Transactions & Recovery": [
+      {
+        "slug": "checkpoints",
+        "label": "Checkpoints",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "blocking",
+            "value": "Blocking"
+          },
+          {
+            "slug": "consistent",
+            "value": "Consistent"
+          },
+          {
+            "slug": "fuzzy",
+            "value": "Fuzzy"
+          },
+          {
+            "slug": "non-blocking",
+            "value": "Non-Blocking"
+          },
+          {
+            "slug": "not-supported",
+            "value": "Not Supported"
+          }
+        ]
+      },
+      {
+        "slug": "concurrency-control",
+        "label": "Concurrency Control",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "deterministic-concurrency-control",
+            "value": "Deterministic Concurrency Control"
+          },
+          {
+            "slug": "multi-version-concurrency-control-mvcc",
+            "value": "Multi-version Concurrency Control (MVCC)"
+          },
+          {
+            "slug": "not-supported",
+            "value": "Not Supported"
+          },
+          {
+            "slug": "optimistic-concurrency-control-occ",
+            "value": "Optimistic Concurrency Control (OCC)"
+          },
+          {
+            "slug": "timestamp-ordering",
+            "value": "Timestamp Ordering"
+          },
+          {
+            "slug": "two-phase-locking-deadlock-detection",
+            "value": "Two-Phase Locking (Deadlock Detection)"
+          },
+          {
+            "slug": "two-phase-locking-deadlock-prevention",
+            "value": "Two-Phase Locking (Deadlock Prevention)"
+          }
+        ]
+      },
+      {
+        "slug": "foreign-keys",
+        "label": "Foreign Keys",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "not-supported",
+            "value": "Not Supported"
+          },
+          {
+            "slug": "supported",
+            "value": "Supported"
+          }
+        ]
+      },
+      {
+        "slug": "isolation-levels",
+        "label": "Isolation Levels",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "cursor-stability",
+            "value": "Cursor Stability"
+          },
+          {
+            "slug": "not-supported",
+            "value": "Not Supported"
+          },
+          {
+            "slug": "read-committed",
+            "value": "Read Committed"
+          },
+          {
+            "slug": "read-stability",
+            "value": "Read Stability"
+          },
+          {
+            "slug": "read-uncommitted",
+            "value": "Read Uncommitted"
+          },
+          {
+            "slug": "repeatable-read",
+            "value": "Repeatable Read"
+          },
+          {
+            "slug": "serializable",
+            "value": "Serializable"
+          },
+          {
+            "slug": "snapshot-isolation",
+            "value": "Snapshot Isolation"
+          }
+        ]
+      },
+      {
+        "slug": "logging",
+        "label": "Logging",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "command-logging",
+            "value": "Command Logging"
+          },
+          {
+            "slug": "logical-logging",
+            "value": "Logical Logging"
+          },
+          {
+            "slug": "not-supported",
+            "value": "Not Supported"
+          },
+          {
+            "slug": "physical-logging",
+            "value": "Physical Logging"
+          },
+          {
+            "slug": "physiological-logging",
+            "value": "Physiological Logging"
+          },
+          {
+            "slug": "shadow-paging",
+            "value": "Shadow Paging"
+          }
+        ]
+      }
+    ],
+    "Data & Storage": [
+      {
+        "slug": "compression",
+        "label": "Compression",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "bit-packing-mostly-encoding",
+            "value": "Bit Packing / Mostly Encoding"
+          },
+          {
+            "slug": "bitmap-encoding",
+            "value": "Bitmap Encoding"
+          },
+          {
+            "slug": "delta-encoding",
+            "value": "Delta Encoding"
+          },
+          {
+            "slug": "dictionary-encoding",
+            "value": "Dictionary Encoding"
+          },
+          {
+            "slug": "frame-of-reference",
+            "value": "Frame of Reference (FOR)"
+          },
+          {
+            "slug": "incremental-encoding",
+            "value": "Incremental Encoding"
+          },
+          {
+            "slug": "naive-page-level",
+            "value": "Naïve (Page-Level)"
+          },
+          {
+            "slug": "naive-record-level",
+            "value": "Naïve (Record-Level)"
+          },
+          {
+            "slug": "null-suppression",
+            "value": "Null Suppression"
+          },
+          {
+            "slug": "prefix-compression",
+            "value": "Prefix Compression"
+          },
+          {
+            "slug": "run-length-encoding",
+            "value": "Run-Length Encoding"
+          }
+        ]
+      },
+      {
+        "slug": "data-model",
+        "label": "Data Model",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "array-matrix",
+            "value": "Array / Matrix"
+          },
+          {
+            "slug": "column-family",
+            "value": "Column Family / Wide-Column"
+          },
+          {
+            "slug": "document-xml",
+            "value": "Document / XML"
+          },
+          {
+            "slug": "entity-attribute-value",
+            "value": "Entity-Attribute-Value"
+          },
+          {
+            "slug": "entity-relationship",
+            "value": "Entity-Relationship"
+          },
+          {
+            "slug": "graph",
+            "value": "Graph"
+          },
+          {
+            "slug": "hierarchical",
+            "value": "Hierarchical"
+          },
+          {
+            "slug": "keyvalue",
+            "value": "Key/Value"
+          },
+          {
+            "slug": "multi-value",
+            "value": "Multi-Value"
+          },
+          {
+            "slug": "network",
+            "value": "Network"
+          },
+          {
+            "slug": "object-oriented",
+            "value": "Object-Oriented"
+          },
+          {
+            "slug": "relational",
+            "value": "Relational"
+          },
+          {
+            "slug": "triplestore-rdf",
+            "value": "Triplestore / RDF"
+          },
+          {
+            "slug": "vector",
+            "value": "Vector"
+          }
+        ]
+      },
+      {
+        "slug": "indexes",
+        "label": "Indexes",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "adaptive-radix-tree-art",
+            "value": "Adaptive Radix Tree (ART)"
+          },
+          {
+            "slug": "avl-tree",
+            "value": "AVL-Tree"
+          },
+          {
+            "slug": "btree",
+            "value": "B+Tree"
+          },
+          {
+            "slug": "b-epsilon-tree",
+            "value": "B-epsilon Tree"
+          },
+          {
+            "slug": "bitmap",
+            "value": "BitMap"
+          },
+          {
+            "slug": "block-range-index",
+            "value": "Block Range Index (BRIN)"
+          },
+          {
+            "slug": "bw-tree",
+            "value": "Bw-Tree"
+          },
+          {
+            "slug": "hash-table",
+            "value": "Hash Table"
+          },
+          {
+            "slug": "hnsw",
+            "value": "Hierarchical Navigable Small World (HNSW)"
+          },
+          {
+            "slug": "inverted-index-full-text",
+            "value": "Inverted Index (Full Text)"
+          },
+          {
+            "slug": "k-d-tree",
+            "value": "K-D Tree"
+          },
+          {
+            "slug": "log-structured-merge-tree",
+            "value": "Log-Structured Merge Tree"
+          },
+          {
+            "slug": "masstree",
+            "value": "MassTree"
+          },
+          {
+            "slug": "not-supported",
+            "value": "Not Supported"
+          },
+          {
+            "slug": "patriciaradix-trie",
+            "value": "Patricia/Radix Trie"
+          },
+          {
+            "slug": "r-tree",
+            "value": "R-Tree"
+          },
+          {
+            "slug": "red-black-tree",
+            "value": "Red-Black Tree"
+          },
+          {
+            "slug": "skip-list",
+            "value": "Skip List"
+          },
+          {
+            "slug": "t-tree",
+            "value": "T-Tree"
+          }
+        ]
+      },
+      {
+        "slug": "storage-architecture",
+        "label": "Storage Architecture",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "disk-oriented",
+            "value": "Disk-oriented"
+          },
+          {
+            "slug": "hybrid",
+            "value": "Hybrid"
+          },
+          {
+            "slug": "in-memory",
+            "value": "In-Memory"
+          }
+        ]
+      },
+      {
+        "slug": "storage-format",
+        "label": "Storage Format",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "arrow",
+            "value": "Arrow"
+          },
+          {
+            "slug": "avro",
+            "value": "Avro"
+          },
+          {
+            "slug": "carbondata",
+            "value": "CarbonData"
+          },
+          {
+            "slug": "csv",
+            "value": "CSV"
+          },
+          {
+            "slug": "custom",
+            "value": "Custom"
+          },
+          {
+            "slug": "datafame",
+            "value": "DataFrame"
+          },
+          {
+            "slug": "hdf5",
+            "value": "HDF5"
+          },
+          {
+            "slug": "hudi",
+            "value": "Hudi"
+          },
+          {
+            "slug": "iceberg",
+            "value": "Iceberg"
+          },
+          {
+            "slug": "n-triples",
+            "value": "N-Triples"
+          },
+          {
+            "slug": "orc",
+            "value": "ORC"
+          },
+          {
+            "slug": "parquet",
+            "value": "Parquet"
+          },
+          {
+            "slug": "rcfile",
+            "value": "RCFile"
+          },
+          {
+            "slug": "sequencefile",
+            "value": "SequenceFile"
+          },
+          {
+            "slug": "trevni",
+            "value": "Trevni"
+          },
+          {
+            "slug": "vortex",
+            "value": "Vortex"
+          }
+        ]
+      },
+      {
+        "slug": "storage-model",
+        "label": "Storage Model",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "custom",
+            "value": "Custom"
+          },
+          {
+            "slug": "decomposition-storage-model-columnar",
+            "value": "Decomposition Storage Model (Columnar)"
+          },
+          {
+            "slug": "hybrid",
+            "value": "Hybrid"
+          },
+          {
+            "slug": "n-ary-storage-model-rowrecord",
+            "value": "N-ary Storage Model (Row/Record)"
+          }
+        ]
+      },
+      {
+        "slug": "storage-organization",
+        "label": "Storage Organization",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "copy-on-write-shadow-paging",
+            "value": "Copy-on-Write / Shadow Paging"
+          },
+          {
+            "slug": "heaps",
+            "value": "Heaps"
+          },
+          {
+            "slug": "indexed-sequential-access-method-isam",
+            "value": "Indexed Sequential Access Method (ISAM)"
+          },
+          {
+            "slug": "log-structured",
+            "value": "Log-structured"
+          },
+          {
+            "slug": "sorted-files",
+            "value": "Sorted Files"
+          }
+        ]
+      }
+    ],
+    "Distributed Architecture": [
+      {
+        "slug": "coordination",
+        "label": "Coordination",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "centralized",
+            "value": "Centralized Coordinator"
+          },
+          {
+            "slug": "crdt",
+            "value": "Conflict-Free Replicated Data Type (CRDT)"
+          },
+          {
+            "slug": "decentralized",
+            "value": "Decentralized"
+          }
+        ]
+      },
+      {
+        "slug": "fault-tolerance",
+        "label": "Fault Tolerance",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "asynchronous-replication",
+            "value": "Asynchronous Replication"
+          },
+          {
+            "slug": "conflict-resolution",
+            "value": "Conflict Resolution"
+          },
+          {
+            "slug": "quorum-based-replication",
+            "value": "Quorum-based Replication"
+          },
+          {
+            "slug": "read-repair",
+            "value": "Read Repair"
+          },
+          {
+            "slug": "synchronous-replication",
+            "value": "Synchronous Replication"
+          }
+        ]
+      },
+      {
+        "slug": "hardware-acceleration",
+        "label": "Hardware Acceleration",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "custom",
+            "value": "Custom"
+          },
+          {
+            "slug": "fpga",
+            "value": "FPGA"
+          },
+          {
+            "slug": "gpu",
+            "value": "GPU"
+          },
+          {
+            "slug": "rdma",
+            "value": "RDMA"
+          }
+        ]
+      },
+      {
+        "slug": "system-architecture",
+        "label": "System Architecture",
+        "multivalued": true,
+        "options": [
+          {
+            "slug": "embedded",
+            "value": "Embedded"
+          },
+          {
+            "slug": "shared-disk",
+            "value": "Shared-Disk"
+          },
+          {
+            "slug": "shared-everything",
+            "value": "Shared-Everything"
+          },
+          {
+            "slug": "shared-memory",
+            "value": "Shared-Memory"
+          },
+          {
+            "slug": "shared-nothing",
+            "value": "Shared-Nothing"
+          }
+        ]
+      }
+    ]
+  },
+  "attributes": [
+    {
+      "slug": "governance",
+      "name": "Governing Foundation",
+      "sv_field": "governance",
+      "options": [
+        {
+          "slug": "apache",
+          "name": "Apache Software Foundation"
+        },
+        {
+          "slug": "cncf",
+          "name": "Cloud Native Computing Foundation"
+        },
+        {
+          "slug": "lf-ai-data-foundation",
+          "name": "LF AI & Data Foundation"
+        },
+        {
+          "slug": "linux-foundation",
+          "name": "Linux Foundation"
+        }
+      ]
+    },
+    {
+      "slug": "license",
+      "name": "License",
+      "sv_field": "licenses",
+      "options": [
+        {
+          "slug": "agpl-v3",
+          "name": "AGPL v3"
+        },
+        {
+          "slug": "apache-v2",
+          "name": "Apache v2"
+        },
+        {
+          "slug": "boost-software-license",
+          "name": "Boost Software License"
+        },
+        {
+          "slug": "bsd",
+          "name": "BSD"
+        },
+        {
+          "slug": "business-source-license",
+          "name": "Business Source License"
+        },
+        {
+          "slug": "cpol",
+          "name": "Code Project Open License"
+        },
+        {
+          "slug": "ccl",
+          "name": "Commons Clause License"
+        },
+        {
+          "slug": "confluent-community-license",
+          "name": "Confluent Community License"
+        },
+        {
+          "slug": "creative-commons",
+          "name": "Creative Commons License"
+        },
+        {
+          "slug": "epl",
+          "name": "Eclipse Public License"
+        },
+        {
+          "slug": "el-v2",
+          "name": "Elastic License v2"
+        },
+        {
+          "slug": "fair-source-license",
+          "name": "Fair Source License"
+        },
+        {
+          "slug": "fsl",
+          "name": "Functional Source License"
+        },
+        {
+          "slug": "gpl-v2",
+          "name": "GPL v2"
+        },
+        {
+          "slug": "gpl-v3",
+          "name": "GPL v3"
+        },
+        {
+          "slug": "isc-license",
+          "name": "ISC License"
+        },
+        {
+          "slug": "lgpl-v2",
+          "name": "LGPL v2"
+        },
+        {
+          "slug": "lgpl-v3",
+          "name": "LGPL v3"
+        },
+        {
+          "slug": "ms-rl",
+          "name": "Microsoft Reference Source License"
+        },
+        {
+          "slug": "mit",
+          "name": "MIT"
+        },
+        {
+          "slug": "mpl",
+          "name": "Mozilla Public License"
+        },
+        {
+          "slug": "mulan-v2",
+          "name": "Mulan PubL v2"
+        },
+        {
+          "slug": "osl-v3",
+          "name": "Open Software License 3.0"
+        },
+        {
+          "slug": "openldap-public-license",
+          "name": "OpenLDAP Public License"
+        },
+        {
+          "slug": "ppl",
+          "name": "Parity Public License"
+        },
+        {
+          "slug": "postgresql-license",
+          "name": "PostgreSQL License"
+        },
+        {
+          "slug": "proprietary",
+          "name": "Proprietary"
+        },
+        {
+          "slug": "public-domain",
+          "name": "Public Domain"
+        },
+        {
+          "slug": "python-license",
+          "name": "Python License"
+        },
+        {
+          "slug": "server-side-public-license",
+          "name": "Server Side Public License"
+        },
+        {
+          "slug": "voltdb-proprietary-license",
+          "name": "VoltDB Proprietary License"
+        },
+        {
+          "slug": "zope-public-license",
+          "name": "Zope Public License"
+        }
+      ]
+    },
+    {
+      "slug": "os",
+      "name": "Operating System",
+      "sv_field": "oses",
+      "options": [
+        {
+          "slug": "aix",
+          "name": "AIX"
+        },
+        {
+          "slug": "all-os-with-java-vm",
+          "name": "All OS with Java VM"
+        },
+        {
+          "slug": "android",
+          "name": "Android"
+        },
+        {
+          "slug": "bsd",
+          "name": "BSD"
+        },
+        {
+          "slug": "cpm",
+          "name": "CP/M"
+        },
+        {
+          "slug": "dos",
+          "name": "DOS"
+        },
+        {
+          "slug": "hosted",
+          "name": "Hosted"
+        },
+        {
+          "slug": "hp-ux",
+          "name": "HP-UX"
+        },
+        {
+          "slug": "illumos",
+          "name": "Illumos"
+        },
+        {
+          "slug": "ios",
+          "name": "iOS"
+        },
+        {
+          "slug": "linux",
+          "name": "Linux"
+        },
+        {
+          "slug": "nextstep",
+          "name": "NeXTSTEP"
+        },
+        {
+          "slug": "openvms",
+          "name": "OpenVMS"
+        },
+        {
+          "slug": "os-x",
+          "name": "OS X"
+        },
+        {
+          "slug": "qnx",
+          "name": "QNX"
+        },
+        {
+          "slug": "solaris",
+          "name": "Solaris"
+        },
+        {
+          "slug": "unixware",
+          "name": "UnixWare"
+        },
+        {
+          "slug": "vxworks",
+          "name": "VxWorks"
+        },
+        {
+          "slug": "windows",
+          "name": "Windows"
+        },
+        {
+          "slug": "zos",
+          "name": "z/OS"
+        }
+      ]
+    },
+    {
+      "slug": "programming-language",
+      "name": "Programming Language",
+      "sv_field": "written_in",
+      "options": [
+        {
+          "slug": "actionscript",
+          "name": "ActionScript"
+        },
+        {
+          "slug": "assembly",
+          "name": "Assembly"
+        },
+        {
+          "slug": "bash",
+          "name": "Bash"
+        },
+        {
+          "slug": "c",
+          "name": "C"
+        },
+        {
+          "slug": "csharp",
+          "name": "C#"
+        },
+        {
+          "slug": "cplusplus",
+          "name": "C++"
+        },
+        {
+          "slug": "clojure",
+          "name": "Clojure"
+        },
+        {
+          "slug": "cobol",
+          "name": "COBOL"
+        },
+        {
+          "slug": "cocoa",
+          "name": "Cocoa"
+        },
+        {
+          "slug": "crystal",
+          "name": "Crystal"
+        },
+        {
+          "slug": "d",
+          "name": "D"
+        },
+        {
+          "slug": "dart",
+          "name": "Dart"
+        },
+        {
+          "slug": "delphi",
+          "name": "Delphi"
+        },
+        {
+          "slug": "eiffel",
+          "name": "Eiffel"
+        },
+        {
+          "slug": "elixir",
+          "name": "Elixir"
+        },
+        {
+          "slug": "erlang",
+          "name": "Erlang"
+        },
+        {
+          "slug": "fsharp",
+          "name": "F#"
+        },
+        {
+          "slug": "fancy",
+          "name": "Fancy"
+        },
+        {
+          "slug": "go-lang",
+          "name": "Go"
+        },
+        {
+          "slug": "groovy",
+          "name": "Groovy"
+        },
+        {
+          "slug": "haskell",
+          "name": "Haskell"
+        },
+        {
+          "slug": "haxe",
+          "name": "Haxe"
+        },
+        {
+          "slug": "io",
+          "name": "Io"
+        },
+        {
+          "slug": "java",
+          "name": "Java"
+        },
+        {
+          "slug": "javascript",
+          "name": "JavaScript"
+        },
+        {
+          "slug": "julia",
+          "name": "Julia"
+        },
+        {
+          "slug": "kl1",
+          "name": "KL1"
+        },
+        {
+          "slug": "kotlin",
+          "name": "Kotlin"
+        },
+        {
+          "slug": "lisp",
+          "name": "Lisp"
+        },
+        {
+          "slug": "lua",
+          "name": "Lua"
+        },
+        {
+          "slug": "matlab",
+          "name": "Matlab"
+        },
+        {
+          "slug": "nim",
+          "name": "Nim"
+        },
+        {
+          "slug": "objective-c",
+          "name": "Objective-C"
+        },
+        {
+          "slug": "ocaml",
+          "name": "Ocaml"
+        },
+        {
+          "slug": "pascal",
+          "name": "Pascal"
+        },
+        {
+          "slug": "perl",
+          "name": "Perl"
+        },
+        {
+          "slug": "php",
+          "name": "PHP"
+        },
+        {
+          "slug": "plsql",
+          "name": "PL/SQL"
+        },
+        {
+          "slug": "prolog",
+          "name": "Prolog"
+        },
+        {
+          "slug": "proprietary",
+          "name": "Proprietary"
+        },
+        {
+          "slug": "python",
+          "name": "Python"
+        },
+        {
+          "slug": "r",
+          "name": "R"
+        },
+        {
+          "slug": "racket",
+          "name": "Racket"
+        },
+        {
+          "slug": "rebol",
+          "name": "Rebol"
+        },
+        {
+          "slug": "ruby",
+          "name": "Ruby"
+        },
+        {
+          "slug": "rust",
+          "name": "Rust"
+        },
+        {
+          "slug": "scala",
+          "name": "Scala"
+        },
+        {
+          "slug": "scheme",
+          "name": "Scheme"
+        },
+        {
+          "slug": "skip",
+          "name": "Skip"
+        },
+        {
+          "slug": "smalltalk",
+          "name": "Smalltalk"
+        },
+        {
+          "slug": "solidity",
+          "name": "Solidity"
+        },
+        {
+          "slug": "sql",
+          "name": "SQL"
+        },
+        {
+          "slug": "swift",
+          "name": "Swift"
+        },
+        {
+          "slug": "tcl",
+          "name": "Tcl"
+        },
+        {
+          "slug": "typescript",
+          "name": "TypeScript"
+        },
+        {
+          "slug": "v-lang",
+          "name": "V"
+        },
+        {
+          "slug": "vcl",
+          "name": "VCL"
+        },
+        {
+          "slug": "visual-basic",
+          "name": "Visual Basic"
+        },
+        {
+          "slug": "zig",
+          "name": "Zig"
+        }
+      ]
+    },
+    {
+      "slug": "project-type",
+      "name": "Project Type",
+      "sv_field": "project_types",
+      "options": [
+        {
+          "slug": "academic",
+          "name": "Academic"
+        },
+        {
+          "slug": "commercial",
+          "name": "Commercial"
+        },
+        {
+          "slug": "educational",
+          "name": "Educational"
+        },
+        {
+          "slug": "hobby",
+          "name": "Hobby"
+        },
+        {
+          "slug": "industrial-research",
+          "name": "Industrial Research"
+        },
+        {
+          "slug": "internal",
+          "name": "Internal / Non-Public"
+        },
+        {
+          "slug": "open-source",
+          "name": "Open Source"
+        }
+      ]
+    },
+    {
+      "slug": "stock-exchange",
+      "name": "Stock Exchange",
+      "sv_field": "",
+      "options": [
+        {
+          "slug": "asx",
+          "name": "ASX"
+        },
+        {
+          "slug": "euronext",
+          "name": "Euronext"
+        },
+        {
+          "slug": "hkex",
+          "name": "HKEX"
+        },
+        {
+          "slug": "lse",
+          "name": "LSE"
+        },
+        {
+          "slug": "nasdaq",
+          "name": "NASDAQ"
+        },
+        {
+          "slug": "nyse",
+          "name": "NYSE"
+        },
+        {
+          "slug": "other",
+          "name": "Other"
+        },
+        {
+          "slug": "tse",
+          "name": "TSE"
+        },
+        {
+          "slug": "tsx",
+          "name": "TSX"
+        }
+      ]
+    },
+    {
+      "slug": "tag",
+      "name": "Tag",
+      "sv_field": "tags",
+      "options": [
+        {
+          "slug": "abandoned",
+          "name": "Abandoned Project"
+        },
+        {
+          "slug": "acquired-company",
+          "name": "Acquired Company"
+        },
+        {
+          "slug": "blockchain",
+          "name": "Blockchain"
+        },
+        {
+          "slug": "cache",
+          "name": "Cache"
+        },
+        {
+          "slug": "failed-company",
+          "name": "Failed Company"
+        },
+        {
+          "slug": "forked-code",
+          "name": "Forked Code"
+        },
+        {
+          "slug": "hosting-service",
+          "name": "Hosting Service"
+        },
+        {
+          "slug": "immutable",
+          "name": "Immutable"
+        },
+        {
+          "slug": "middleware",
+          "name": "Middleware"
+        },
+        {
+          "slug": "mmap",
+          "name": "MMAP"
+        },
+        {
+          "slug": "mobile",
+          "name": "Mobile"
+        },
+        {
+          "slug": "multi-model",
+          "name": "Multi-Model"
+        },
+        {
+          "slug": "nearest-neighbor-search",
+          "name": "Nearest Neighbor Search"
+        },
+        {
+          "slug": "newsql",
+          "name": "NewSQL"
+        },
+        {
+          "slug": "nosql",
+          "name": "NoSQL"
+        },
+        {
+          "slug": "olap",
+          "name": "OLAP"
+        },
+        {
+          "slug": "oltp",
+          "name": "OLTP"
+        },
+        {
+          "slug": "parody",
+          "name": "Parody / Joke"
+        },
+        {
+          "slug": "p2p",
+          "name": "Peer-to-Peer"
+        },
+        {
+          "slug": "query-engine",
+          "name": "Query Engine"
+        },
+        {
+          "slug": "revival",
+          "name": "Revival Project"
+        },
+        {
+          "slug": "search-engine",
+          "name": "Search Engine"
+        },
+        {
+          "slug": "serverless",
+          "name": "Serverless"
+        },
+        {
+          "slug": "streaming",
+          "name": "Streaming"
+        },
+        {
+          "slug": "time-series",
+          "name": "Time-Series"
+        },
+        {
+          "slug": "versioning",
+          "name": "Versioning"
+        },
+        {
+          "slug": "web-browser",
+          "name": "Web Browser"
+        },
+        {
+          "slug": "xbase",
+          "name": "xBase"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    "Derived From",
+    "Compatible With",
+    "Embeds",
+    "Inspired By"
+  ]
+}

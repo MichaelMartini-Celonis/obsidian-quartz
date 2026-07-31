@@ -24,11 +24,14 @@ def _roots(names: list[str] | None):
     mapping = {
         "literature": config.LITERATURE_DIR,
         "transcripts": config.TRANSCRIPTS_DIR,
+        "notebooks": config.NOTEBOOKS_DIR,
+        "db_systems": config.DB_SYSTEMS_DIR,
         "outbox": config.OUTBOX_DIR,
         "inbox": config.INBOX_DIR,
     }
     if not names:
-        return [config.LITERATURE_DIR, config.TRANSCRIPTS_DIR, config.OUTBOX_DIR]
+        return [config.LITERATURE_DIR, config.TRANSCRIPTS_DIR,
+                config.NOTEBOOKS_DIR, config.DB_SYSTEMS_DIR, config.OUTBOX_DIR]
     return [mapping[n] for n in names]
 
 
@@ -168,7 +171,8 @@ def main(argv=None) -> int:
 
     p_index = sub.add_parser("index", help="ingest files into the index")
     p_index.add_argument("--roots", nargs="*",
-                         choices=["literature", "transcripts", "outbox", "inbox"])
+                         choices=["literature", "transcripts", "notebooks", "db_systems",
+                                  "outbox", "inbox"])
     p_index.add_argument("--limit", type=int, default=None, help="max files to process")
     p_index.add_argument("--reset", action="store_true", help="drop and rebuild the index")
     p_index.set_defaults(func=cmd_index)

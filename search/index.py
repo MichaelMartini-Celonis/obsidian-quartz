@@ -8,6 +8,7 @@ re-embeds unchanged text.
 from __future__ import annotations
 
 import hashlib
+import re
 import sys
 from pathlib import Path
 
@@ -15,6 +16,20 @@ from . import chunk as chunkmod
 from . import config
 from . import db as dbmod
 from . import extract as extractmod
+
+# Lone UTF-16 surrogate code points (U+D800–U+DFFF) occasionally leak out of
+# PDF text extraction (e.g. mis-decoded ToUnicode CMaps). They are not valid in
+# well-formed text and DuckDB refuses to encode them ("surrogates not allowed"),
+# which would otherwise abort indexing of the whole document. Strip them.
+_SURROGATE_RE = re.compile("[\ud800-\udfff]")
+
+
+def _clean(s):
+    if isinstance(s, str):
+        return _SURROGATE_RE.sub("", s)
+    if isinstance(s, list):
+        return [_clean(x) for x in s]
+    return s
 
 
 def file_hash(path: Path) -> str:
@@ -34,6 +49,8 @@ def classify_source(path: Path) -> tuple[str, str, str]:
     for name, root in (
         ("Literature", config.LITERATURE_DIR),
         ("Transcripts", config.TRANSCRIPTS_DIR),
+        ("Notebooks", config.NOTEBOOKS_DIR),
+        ("DB Systems", config.DB_SYSTEMS_DIR),
         ("Outbox", config.OUTBOX_DIR),
         ("Inbox", config.INBOX_DIR),
     ):
@@ -46,6 +63,12 @@ def classify_source(path: Path) -> tuple[str, str, str]:
         elif name == "Transcripts":
             # Group by channel sub-folder, e.g. "Transcripts/DuckDB".
             topic = f"Transcripts/{rel.parts[0]}" if len(rel.parts) > 1 else "Transcripts"
+        elif name == "Notebooks":
+            # A single flat topic — notebooks are indexed on their own, not as books.
+            topic = f"Notebooks/{rel.parts[0]}" if len(rel.parts) > 1 else "Notebooks"
+        elif name == "DB Systems":
+            # Group by collection sub-folder, e.g. "DB Systems/dbdb".
+            topic = f"DB Systems/{rel.parts[0]}" if len(rel.parts) > 1 else "DB Systems"
         else:
             topic = name
         return name, str(Path(name) / rel), topic
@@ -118,9 +141,17 @@ def index_file(con, embedder, path: Path) -> str:
     stat = path.stat()
 
     existing = con.execute(
-        "SELECT mtime, size FROM documents WHERE doc_id = ?", [doc_id]
+        "SELECT mtime, size, path FROM documents WHERE doc_id = ?", [doc_id]
     ).fetchone()
-    if existing and existing[1] == stat.st_size and abs(existing[0] - stat.st_mtime) < 1.0:
+    if existing and existing[1] == stat.st_size and existing[2] == str(path):
+        # doc_id is a content hash, so identical hash + same path + same size means
+        # the bytes (hence extraction/chunks/embeddings) are unchanged — nothing to
+        # re-do. Only the filesystem mtime may have drifted (e.g. after a bulk copy
+        # or LFS restore); refresh it so future runs fast-skip, and move on without
+        # the expensive re-extraction/re-embedding.
+        if abs(existing[0] - stat.st_mtime) >= 1.0:
+            con.execute("UPDATE documents SET mtime = ? WHERE doc_id = ?",
+                        [stat.st_mtime, doc_id])
         return "skip"
 
     # Clear any prior rows for this content or this path (moved/updated file).
@@ -140,7 +171,7 @@ def index_file(con, embedder, path: Path) -> str:
         for piece in chunkmod.chunk_text(ptext, config.CHUNK_SIZE, config.CHUNK_OVERLAP):
             if config.MAX_CHARS_PER_DOC and total_chars >= config.MAX_CHARS_PER_DOC:
                 break
-            chunk_rows.append((ordinal, page_no, piece))
+            chunk_rows.append((ordinal, page_no, _clean(piece)))
             total_chars += len(piece)
             ordinal += 1
 
@@ -157,7 +188,8 @@ def index_file(con, embedder, path: Path) -> str:
         """,
         [
             doc_id, str(path), rel_path, path.suffix.lower(), stat.st_size, stat.st_mtime,
-            source, topic, ex.title, ex.authors, ex.year, ex.venue, ex.abstract,
+            source, topic, _clean(ex.title), _clean(ex.authors), ex.year,
+            _clean(ex.venue), _clean(ex.abstract),
             ex.n_pages, len(chunk_rows), ex.extraction_confidence, ex.needs_review,
             config.is_internal_rel_path(rel_path),
         ],

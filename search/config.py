@@ -21,6 +21,14 @@ OUTBOX_DIR = DOCS_ROOT / "Outbox"
 # YouTube (and other) video transcripts, imported via scripts/import-youtube.py.
 # A first-class search root so transcripts are indexed alongside the papers.
 TRANSCRIPTS_DIR = DOCS_ROOT / "Transcripts"
+# Jupyter notebooks, collected out of the library into their own top-level
+# folder (like Transcripts). A first-class search root so notebooks are indexed
+# under their own "Notebooks" topic rather than as library "Books".
+NOTEBOOKS_DIR = DOCS_ROOT / "notebooks"
+# Database-system reference pages (e.g. the CMU dbdb.io "Database of Databases"
+# mirror under db_systems/dbdb/), tagged with the dbdb-aligned taxonomy. A
+# first-class search root so systems are queryable alongside the papers.
+DB_SYSTEMS_DIR = DOCS_ROOT / "db_systems"
 
 DB_PATH = Path(os.environ.get("SEARCH_DB", str(SEARCH_DIR / "index.duckdb")))
 
