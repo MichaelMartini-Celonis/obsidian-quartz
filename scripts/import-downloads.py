@@ -38,7 +38,12 @@ SKIP_SUFFIXES = {
 }
 SKIP_NAMES = {".ds_store", ".localized", "readme.md"}
 
-IMPORT_SUFFIXES = {".pdf", ".docx", ".pptx", ".ipynb", ".bpmn", ".md", ".xlsx", ".txt", ".epub"}
+# ".ppsx" is a PowerPoint *show* — the same OOXML package as ".pptx" with a
+# different manifest, so python-pptx reads it unchanged. It is included because
+# conference decks are frequently published in that form (the 4DSIG/C-FORS talks
+# in the BORO harvest are all .ppsx), and excluding it stranded 63 documents.
+IMPORT_SUFFIXES = {".pdf", ".docx", ".pptx", ".ppsx", ".ipynb", ".bpmn", ".md",
+                   ".xlsx", ".txt", ".epub"}
 
 BOILERPLATE_TITLES = {
     "untitled",
@@ -49,6 +54,43 @@ BOILERPLATE_TITLES = {
 }
 
 CLASSIFICATION_RULES: list[tuple[str, list[str]]] = [
+    # Order matters — the first matching rule wins. The two temporality rules go
+    # first because their vocabulary ("ontology", "data model", "identity")
+    # otherwise gets swallowed by the broad Process Modeling rule below.
+    #
+    # Philosophy of persistence and process: where the 3D/endurantism vs
+    # 4D/perdurantism debate is actually argued.
+    ("Philosophy of Time and Identity", [
+        "perdurant", "endurant", "four-dimensionalism", "temporal parts",
+        "temporary intrinsics", "ship of theseus", "unreality of time",
+        "presentism", "eternalism", "exdurantism", "stage view",
+        "process philosophy", "process metaphysics", "mereology",
+        "identity across time", "persistence, change", "identity over time",
+        "heraclitus", "parmenides", "heidegger", "whitehead", "bergson",
+        "dasein", "temporality (", "creative evolution", "matter and memory",
+        "time and free will", "concept of nature", "logical point of view",
+        "rearrangement of particles",
+    ]),
+    # The engineering tradition that made a 4D commitment and shipped it:
+    # lifecycle data integration, upper-ontology choice, temporal RDF/OWL.
+    ("Ontology Engineering/Temporality and Identity", [
+        "iso 15926", "hqdm", "high quality data model", "boro",
+        "top-level ontolog", "top level ontolog", "upper ontolog",
+        "information management framework", "national digital twin",
+        "gemini principles", "foundation data model", "reference data librar",
+        "asset administration shell", "spatio-temporal extent",
+        "fluents in owl", "temporal rdf", "time into rdf", "towl",
+        "temporal web ontology", "changing information in owl",
+        "changes in owl", "change over time in owl", "ontologies with time",
+        "temporal representation and reasoning", "ontoclean",
+        "ontology of properties", "metaphysical choices",
+        "ontological foundations", "unified foundational ontology",
+        "spatiotemporal statements", "classification pattern",
+        "foundation for assembly", "temporally enhanced ontologies",
+        "activity specifications in owl", "biographical knowledge",
+        "integrated approach to information management",
+        "cultural heritage knowledge graph",
+    ]),
     ("Process Mining/Object-centric", [
         "object-centric", "object centric", "ocel", "ocpm", "multidimensional event",
         "event graph", "knowledge graph", "event knowledge graph", "pi graph",
@@ -110,6 +152,10 @@ CLASSIFICATION_RULES: list[tuple[str, list[str]]] = [
 # are treated as internal working material; PDFs need a strong Celonis codename
 # so genuine external literature that merely mentions Celonis stays external.
 CELONIS_INTERNAL_DIR = "Celonis Internal"
+# ".ppsx" is deliberately absent. The internal-by-default rule is calibrated for
+# Google Workspace exports, which arrive as .docx/.pptx/.xlsx; a PowerPoint
+# *show* is how public conference talks are published (the 4DSIG/WDBS decks), so
+# treating it as internal working material misfiles external literature.
 OFFICE_INTERNAL_SUFFIXES = {".docx", ".pptx", ".xlsx"}
 # Celonis internal codenames / phrases. Matched with word boundaries (see
 # is_celonis_internal) so short tokens like "wvda" no longer match unrelated

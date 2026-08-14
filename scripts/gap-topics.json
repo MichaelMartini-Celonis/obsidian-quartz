@@ -1,0 +1,321 @@
+{
+  "$comment": [
+    "Topic maps for scripts/gap-audit.py. Each topic groups themes; each theme",
+    "groups concepts. A concept declares `terms` (lexical probes run against the",
+    "index), an optional `probe` sentence (used by --semantic), and `canonical`",
+    "works that would close the gap if the verdict comes back absent/mention-only.",
+    "Keep terms specific: generic words ('time', 'change', 'identity') match",
+    "everything and tell you nothing."
+  ],
+  "topics": {
+    "temporality-ontology": {
+      "title": "Temporality & ontology — 3D/endurantism vs 4D/perdurantism",
+      "question": "Does the collection cover how identity persists through time — the 3D/4D split — across analytic metaphysics, process philosophy, foundational ontologies, industrial 4D engineering, and temporal data modelling? And does it cover the mismatch between the philosophical and the data-engineering traditions?",
+      "themes": [
+        {
+          "name": "Analytic metaphysics of persistence",
+          "note": "The philosophical literature that actually argues the 3D/4D question. This is where the terms endurantism/perdurantism come from.",
+          "concepts": [
+            {
+              "label": "Four-dimensionalism (Sider)",
+              "terms": ["four-dimensionalism", "four dimensionalism", "4-dimensionalism"],
+              "probe": "four-dimensionalism an ontology of persistence and time",
+              "canonical": [
+                "Sider, *Four-Dimensionalism: An Ontology of Persistence and Time* (OUP 2001) — book, paywalled; the 1997 precis is open",
+                "Sider, 'Four-Dimensionalism' (Philosophical Review 1997)"
+              ]
+            },
+            {
+              "label": "Perdurantism / temporal parts",
+              "terms": ["perdurantism", "perdurantist", "perdurance", "temporal parts"],
+              "probe": "an object is a spacetime worm composed of temporal parts",
+              "canonical": [
+                "Thomson, 'Parthood and Identity Across Time' (J. Philosophy 1983)",
+                "Lewis on temporal parts and temporary intrinsics"
+              ]
+            },
+            {
+              "label": "Endurantism",
+              "terms": ["endurantism", "endurantist", "endurance and temporary intrinsics", "wholly present"],
+              "probe": "an object is wholly present at every instant of its existence",
+              "canonical": [
+                "Haslanger, 'Endurance and Temporary Intrinsics' (Analysis 1989)",
+                "Haslanger, 'Persistence, Change, and Explanation' (1989)"
+              ]
+            },
+            {
+              "label": "Stage theory / exdurantism",
+              "terms": ["exdurantism", "stage theory", "stage view", "stage-theoretic"],
+              "probe": "stage theory momentary stages counterpart relation persistence",
+              "canonical": ["Sider, 'All the World's a Stage' (AJP 1996)"]
+            },
+            {
+              "label": "McTaggart A-series / B-series",
+              "terms": ["McTaggart", "unreality of time", "tenseless", "A-series and B-series"],
+              "probe": "McTaggart the unreality of time A series B series tensed facts",
+              "canonical": ["McTaggart, 'The Unreality of Time' (Mind 1908) — public domain"]
+            },
+            {
+              "label": "Presentism / eternalism",
+              "terms": ["presentism", "eternalism", "growing block"],
+              "probe": "presentism eternalism does the past exist ontology of time",
+              "canonical": ["SEP entries: Presentism; Time; Being and Becoming in Modern Physics"]
+            },
+            {
+              "label": "Material constitution / Ship of Theseus",
+              "terms": ["Ship of Theseus", "material constitution", "coincident objects"],
+              "probe": "ship of Theseus replacement of parts numerical identity puzzle",
+              "canonical": ["SEP: Material Constitution; Ordinary Objects"]
+            },
+            {
+              "label": "Mereology / parthood",
+              "terms": ["mereology", "mereological", "parthood", "extensional mereology", "weak supplementation"],
+              "probe": "mereology parthood axioms transitivity supplementation",
+              "canonical": ["SEP: Mereology; Location and Mereology"]
+            },
+            {
+              "label": "Sortals / criteria of identity",
+              "terms": ["sortal", "criterion of identity", "criteria of identity", "relative identity", "OntoClean"],
+              "probe": "sortal terms criteria of identity and individuation over time",
+              "canonical": ["SEP: Sortals; Relative Identity; Identity Over Time"]
+            }
+          ]
+        },
+        {
+          "name": "Process philosophy & the philosophy of becoming",
+          "note": "The tradition that treats process, not substance, as basic — the deep background to any 4D commitment.",
+          "concepts": [
+            {
+              "label": "Heraclitus / flux",
+              "terms": ["Heraclitus", "Heraclitean", "panta rhei", "everything flows"],
+              "probe": "Heraclitus flux everything flows river fragments becoming",
+              "canonical": ["SEP: Heraclitus", "IEP: Heraclitus", "Fragments of Heraclitus (public domain)"]
+            },
+            {
+              "label": "Parmenides / being",
+              "terms": ["Parmenides", "Parmenidean", "Eleatic"],
+              "probe": "Parmenides being is unchanging denial of becoming",
+              "canonical": ["SEP: Parmenides", "IEP: Parmenides"]
+            },
+            {
+              "label": "Aristotle: substance & categories",
+              "terms": ["Aristotle", "Aristotelian", "primary substance", "hylomorphism"],
+              "probe": "Aristotle substance accident category persistence of the substratum",
+              "canonical": ["Aristotle, *Categories* / *Metaphysics* / *Physics* (public domain)"]
+            },
+            {
+              "label": "Whitehead (process metaphysics)",
+              "terms": ["Alfred North Whitehead", "actual occasions", "Process and Reality", "concept of nature"],
+              "probe": "Whitehead process and reality actual occasions events as basic",
+              "canonical": [
+                "Whitehead, *The Concept of Nature* (1920, public domain)",
+                "Whitehead, *Science and the Modern World* (1925, public domain)",
+                "SEP / IEP: Alfred North Whitehead"
+              ]
+            },
+            {
+              "label": "Heidegger (temporality of Dasein)",
+              "terms": ["Heidegger", "Dasein", "Sein und Zeit", "Zuhandenheit"],
+              "probe": "Heidegger Being and Time temporality of Dasein care ecstatic time",
+              "canonical": [
+                "SEP: Martin Heidegger; IEP: Heidegger",
+                "Blattner on Heideggerian temporality (open)",
+                "Heidegger, *Being and Time* — in copyright, not open"
+              ]
+            },
+            {
+              "label": "Bergson (duration)",
+              "terms": ["Bergson", "durée", "duration and simultaneity", "creative evolution"],
+              "probe": "Bergson duration lived time versus spatialized time",
+              "canonical": [
+                "Bergson, *Time and Free Will* / *Creative Evolution* / *Matter and Memory* (public domain)",
+                "SEP / IEP: Henri Bergson"
+              ]
+            },
+            {
+              "label": "Rescher / Deleuze / process metaphysics",
+              "terms": ["Rescher", "process metaphysics", "Deleuze", "process philosophy"],
+              "probe": "process metaphysics processes rather than substances as fundamental",
+              "canonical": ["SEP: Process Philosophy", "IEP: Process Philosophy", "IEP: Differential Ontology"]
+            }
+          ]
+        },
+        {
+          "name": "Foundational (upper) ontologies and their temporal commitments",
+          "note": "Where the philosophical split is operationalised as a modelling commitment.",
+          "concepts": [
+            {
+              "label": "BFO continuant / occurrent",
+              "terms": ["Basic Formal Ontology", "continuant", "occurrent"],
+              "probe": "BFO continuant occurrent independent continuant process",
+              "canonical": ["Arp, Smith & Spear, *Building Ontologies with Basic Formal Ontology*"]
+            },
+            {
+              "label": "DOLCE endurant / perdurant",
+              "terms": ["DOLCE", "endurant", "perdurant"],
+              "probe": "DOLCE descriptive ontology endurant perdurant quality quale",
+              "canonical": ["Masolo et al., WonderWeb Deliverable D18", "Borgo et al., 'DOLCE: A descriptive ontology…' (Applied Ontology 2022)"]
+            },
+            {
+              "label": "UFO / OntoUML kinds, roles, phases",
+              "terms": ["Unified Foundational Ontology", "OntoUML", "Guizzardi", "anti-rigid", "relator"],
+              "probe": "UFO OntoUML kind role phase relator identity provider rigidity",
+              "canonical": ["Guizzardi, *Ontological Foundations for Structural Conceptual Models* (2005)"]
+            },
+            {
+              "label": "gist / SUMO / other upper ontologies",
+              "terms": ["gist ontology", "Suggested Upper Merged Ontology", "SUMO", "upper ontology"],
+              "probe": "comparison of upper ontologies enterprise semantics minimalist",
+              "canonical": ["Partridge et al., 'A Survey of Top-Level Ontologies' (CDBB 2020)"]
+            },
+            {
+              "label": "Representing change in OWL (4D fluents vs states)",
+              "terms": ["4D fluents", "fluents", "temporal fluent", "reification of time", "time slice"],
+              "probe": "representing temporally changing information in OWL fluents time slices",
+              "canonical": [
+                "Guizzardi et al., 'On the Representation of Temporally Changing Information in OWL'",
+                "Guizzardi et al., 'Empirically Evaluating Three Proposals for Representing Changes in OWL2'",
+                "Welty & Fikes, 'A Reusable Ontology for Fluents in OWL'"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Industrial 4D: where perdurantism actually shipped",
+          "note": "The engineering tradition that adopted 4D wholesale — lifecycle data integration, configuration management and digital twins. This is the practical answer to 'is version A and version B the same thing?'.",
+          "concepts": [
+            {
+              "label": "ISO 15926 (lifecycle data integration)",
+              "terms": ["ISO 15926", "ISO15926", "EPISTLE", "POSC Caesar"],
+              "probe": "ISO 15926 lifecycle integration of process plant data spatio-temporal extent",
+              "canonical": ["ISO 15926-1/-2 (official open previews)", "West, 'Some Industrial Experiences in the Development and Use of Ontologies' (CEUR 2004)"]
+            },
+            {
+              "label": "HQDM (Matthew West)",
+              "terms": ["HQDM", "High Quality Data Model", "Matthew West"],
+              "probe": "high quality data model 4D spatio-temporal extent enterprise data model",
+              "canonical": ["West, *Developing High Quality Data Models* (2011)", "gchq/HQDM + gchq/MagmaCore (open implementations)"]
+            },
+            {
+              "label": "BORO / IDEAS / extensionalism",
+              "terms": ["BORO", "Business Objects Reference Ontology", "IDEAS Group", "extensionalism", "spatio-temporal extent"],
+              "probe": "BORO 4D extensional ontology identity via spatio-temporal extent",
+              "canonical": ["Partridge, *Business Objects: Re-engineering for Re-use*", "IDEAS Foundation model", "the BORO methodology"]
+            },
+            {
+              "label": "UK Information Management Framework / National Digital Twin",
+              "terms": ["Information Management Framework", "Foundation Data Model", "National Digital Twin", "Gemini Principles"],
+              "probe": "foundation data model information management framework top-level ontology choice",
+              "canonical": [
+                "Hetherington & West, 'The Pathway Towards an Information Management Framework' (CDBB 2020)",
+                "'The Approach to Develop the Foundation Data Model' (CDBB 2021)"
+              ]
+            },
+            {
+              "label": "Perdurantism applied to data integration",
+              "terms": ["perdurantist foundational ontology", "4D-SETL", "re-engineering legacy data ontology"],
+              "probe": "exploiting a perdurantist foundational ontology for data integration",
+              "canonical": ["Partridge (Brunel PhD thesis), 'Exploiting a Perdurantist Foundational Ontology…' — 4D-SETL"]
+            },
+            {
+              "label": "Digital twin / lifecycle identity",
+              "terms": ["digital twin", "Asset Administration Shell", "product lifecycle management", "configuration management"],
+              "probe": "digital twin asset identity across lifecycle versions and retirement",
+              "canonical": ["IDTA Asset Administration Shell Part 1: Metamodel", "Industrial Ontologies Foundry Core"]
+            }
+          ]
+        },
+        {
+          "name": "Temporal data modelling — the 4D tradition in databases",
+          "note": "The data-engineering side, which the library covers well; kept in the audit so the contrast with the philosophy themes is visible.",
+          "concepts": [
+            {
+              "label": "Anchor Modeling / 6NF",
+              "terms": ["Anchor Modeling", "sixth normal form", "6NF"],
+              "probe": "anchor modeling agile information modeling evolving data environments",
+              "canonical": ["Regardt, Rönnbäck et al., 'Anchor Modeling' (ER 2009)"]
+            },
+            {
+              "label": "Data Vault",
+              "terms": ["Data Vault", "hub link satellite"],
+              "probe": "data vault hubs links satellites historization",
+              "canonical": ["Linstedt & Olschimke, *Building a Scalable Data Warehouse with Data Vault 2.0*"]
+            },
+            {
+              "label": "Bitemporal / valid & transaction time",
+              "terms": ["bitemporal", "bi-temporal", "valid time", "transaction time"],
+              "probe": "bitemporal database valid time transaction time relations",
+              "canonical": ["Snodgrass, *Developing Time-Oriented Database Applications in SQL*", "Date, Darwen & Lorentzos, *Time and Relational Theory*"]
+            },
+            {
+              "label": "Temporal query languages & standards",
+              "terms": ["TSQL2", "SQL:2011", "system versioned", "application time period"],
+              "probe": "temporal SQL standard system versioned tables period specification",
+              "canonical": ["Kulkarni & Michels, 'Temporal Features in SQL:2011'"]
+            },
+            {
+              "label": "Interval algebra / temporal reasoning",
+              "terms": ["interval algebra", "Allen's interval", "temporal reasoning"],
+              "probe": "maintaining knowledge about temporal intervals allen relations",
+              "canonical": ["Allen, 'Maintaining Knowledge about Temporal Intervals' (1983)"]
+            },
+            {
+              "label": "Slowly changing dimensions / historization",
+              "terms": ["slowly changing dimension", "type 2 dimension", "historization"],
+              "probe": "slowly changing dimension type 2 surrogate key history rows",
+              "canonical": ["Kimball & Ross, *The Data Warehouse Toolkit*"]
+            },
+            {
+              "label": "Event sourcing / immutable append-only state",
+              "terms": ["event sourcing", "append-only log", "immutable data model"],
+              "probe": "event sourcing rebuild state from an immutable event log",
+              "canonical": ["Fowler / Young on event sourcing; Kleppmann on turning the database inside out"]
+            },
+            {
+              "label": "Temporal RDF / temporal knowledge graphs",
+              "terms": ["temporal RDF", "temporal knowledge graph", "OWL-Time", "versioned triple"],
+              "probe": "temporal RDF versioning time-annotated triples knowledge graph",
+              "canonical": ["Gutierrez et al., 'Temporal RDF'", "W3C OWL-Time"]
+            },
+            {
+              "label": "Object-centric event data (process mining bridge)",
+              "terms": ["object-centric event data", "OCEL", "event knowledge graph", "object-centric process mining"],
+              "probe": "object-centric event data objects events relations over time",
+              "canonical": ["Fahland et al., OCED core model", "Hooshyar et al., 'Time and Relations into Focus'"]
+            }
+          ]
+        },
+        {
+          "name": "The mismatch itself",
+          "note": "Work that explicitly confronts the philosophical tradition with modern data ontology / knowledge representation practice. This is the crux of the question and the thinnest area of all.",
+          "concepts": [
+            {
+              "label": "Ontological commitments of data models",
+              "terms": ["ontological commitment", "ontological correctness", "metaphysical choices", "conceptual model quality"],
+              "probe": "ontological commitments underlying a data model or knowledge graph",
+              "canonical": ["Guizzardi on ontological correctness vs logical validity", "Figay, 'Everyone Has an Ontology Now'"]
+            },
+            {
+              "label": "3D vs 4D as a modelling decision",
+              "terms": ["4D ontology", "4D approach", "4D paradigm", "3D and 4D", "endurantist and perdurantist", "perdurantist and endurantist"],
+              "probe": "choosing between 3D and 4D commitments when building an ontology",
+              "canonical": ["Partridge et al., 'A Survey of Top-Level Ontologies' (classifies TLOs as 3D or 4D)"]
+            },
+            {
+              "label": "Identity & versioning in knowledge graphs",
+              "terms": ["entity identity over time", "identity management versioning", "graph versioning", "semantic drift"],
+              "probe": "maintaining entity identity and versions coherently in a knowledge graph",
+              "canonical": ["Temporal/versioned KG literature; provenance and change-management work"]
+            },
+            {
+              "label": "Philosophy → information systems transfer",
+              "terms": ["philosophy and information systems", "analytic metaphysics conceptual modeling", "Bunge", "Wand and Weber"],
+              "probe": "using analytic metaphysics to ground information systems modelling",
+              "canonical": ["Wand & Weber's ontological foundations", "Lukyanenko on Bunge's Systemist Ontology"]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

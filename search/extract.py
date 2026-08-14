@@ -11,6 +11,7 @@ import json
 import re
 import zipfile
 from dataclasses import dataclass, field
+from html import unescape as html_unescape
 from pathlib import Path
 
 from . import config
@@ -130,13 +131,46 @@ def _extract_docx(path: Path) -> ExtractedDoc:
     )
 
 
-def _extract_pptx(path: Path) -> ExtractedDoc:
+def _slide_text_from_package(path: Path) -> ExtractedDoc:
+    """Read slide text straight out of the OOXML package.
+
+    `python-pptx` validates the package content type and refuses a `.ppsx`
+    (PowerPoint *show*), even though the parts inside are identical to a
+    `.pptx`. Rather than lose those decks — conference talks are routinely
+    published as shows — pull the `<a:t>` text runs out of `ppt/slides/slideN.xml`
+    directly, which needs no dependency and works for both forms.
+    """
+    pages: list[tuple[int, str]] = []
+    title = None
     try:
-        from pptx import Presentation
+        with zipfile.ZipFile(path) as z:
+            names = sorted(
+                (n for n in z.namelist()
+                 if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)),
+                key=lambda n: int(re.search(r"(\d+)", n.rsplit("/", 1)[-1]).group(1)),
+            )
+            for i, name in enumerate(names, 1):
+                xml = z.read(name).decode("utf-8", errors="ignore")
+                runs = [html_unescape(t) for t in re.findall(r"<a:t>(.*?)</a:t>", xml, re.S)]
+                text = "\n".join(r for r in (r.strip() for r in runs) if r)
+                if text:
+                    if title is None:
+                        title = _clean(text.splitlines()[0])
+                    pages.append((i, text))
     except Exception:
         return ExtractedDoc(title=path.stem, pages=[], n_pages=0, needs_review=True,
                             extraction_confidence=0.1)
-    prs = Presentation(str(path))
+    return ExtractedDoc(title=title or path.stem, pages=pages, n_pages=len(pages),
+                        extraction_confidence=0.5, needs_review=not pages)
+
+
+def _extract_pptx(path: Path) -> ExtractedDoc:
+    try:
+        from pptx import Presentation
+
+        prs = Presentation(str(path))
+    except Exception:
+        return _slide_text_from_package(path)
     pages = []
     title = None
     for i, slide in enumerate(prs.slides):
@@ -226,6 +260,8 @@ _DISPATCH = {
     ".pdf": _extract_pdf,
     ".docx": _extract_docx,
     ".pptx": _extract_pptx,
+    # A PowerPoint show is the same OOXML package as a .pptx presentation.
+    ".ppsx": _extract_pptx,
     ".ipynb": _extract_ipynb,
     ".md": _extract_text,
     ".txt": _extract_text,

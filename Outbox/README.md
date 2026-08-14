@@ -5,6 +5,9 @@ imported source material, which lives in `../Literature/`.
 
 ## Contents
 
+- `knowledge-garden/` — design proposal for a cloud-hosted, MCP-accessible version of this
+  knowledge repository at Celonis:
+  - `design-proposal.md`
 - `thesis/` — agent-in-the-loop thesis proposals and drafts:
   - `agent-in-the-loop-oer-discovery-thesis-proposal.md`
   - `agent-in-the-loop-process-discovery-thesis-draft.md`

@@ -64,7 +64,7 @@ class DocSource:
     key: str
     company: str
     title: str
-    method: str                     # llms_full | sitemap | crawl | git | next_data | toc | pages
+    method: str                     # llms_full | sitemap | crawl | git | next_data | toc | pages | butter_cms
     license: str = ""
     # destination collection (top-level Literature/ subfolder). Defaults to the
     # tool/competitor docs collection; set to "Source Systems Knowledge" (etc.)
@@ -85,6 +85,10 @@ class DocSource:
     repo: str = ""
     subdir: str = ""
     file_globs: tuple[str, ...] = ("*.md",)   # which files to ingest from a git checkout
+    # butter_cms
+    api_url: str = ""               # JSON endpoint proxying the ButterCMS content API
+    api_path: str = ""              # value of its ``path`` query parameter
+    site_root: str = ""             # SPA root used to rebuild per-page permalinks
     # shared
     prefer: str = ""                # front-load URLs matching this before capping
     drop_re: str = ""               # never fetch URLs matching this
@@ -179,6 +183,33 @@ SOURCES: list[DocSource] = [
         keep_re=r"/docs/foundry/(ontology|action-types|functions|quiver|machinery)/",
         cap=300, source_url="https://www.palantir.com/docs/foundry/ontology/overview/",
         license="\u00a9 Palantir Technologies Inc.",
+    ),
+    # KumoAI's relational foundation model docs now live on the NVIDIA docs
+    # portal under /sdgm/ ("Structured Data and Graph Models"). Every page also
+    # serves clean markdown at "<url>.md", so we take that instead of scraping.
+    DocSource(
+        key="kumoai", company="KumoAI", method="sitemap",
+        title="KumoAI \u2014 KumoRFM & Structured Data / Graph Models Documentation",
+        sitemaps=("https://docs.nvidia.com/sdgm/sitemap.xml",),
+        keep_re=r"^https://docs\.nvidia\.com/sdgm/.+",
+        md_suffix=True,
+        prefer=r"/sdgm/(rfm|quick-start|sdk|reference|fine-tuning)/",
+        drop_re=r"/(privacy-policy|consumer-privacy|data-processing-addendum|releases/)",
+        cap=300, source_url="https://docs.nvidia.com/sdgm/rfm/overview",
+        license="\u00a9 NVIDIA Corporation / Kumo.AI",
+    ),
+    # The Ikigai docs site is a client-rendered SPA with no sitemap; its content
+    # comes from a ButterCMS collection exposed through a public proxy endpoint,
+    # which returns every doc page (HTML body + navigation grouping) in one call.
+    DocSource(
+        key="ikigai", company="Ikigai Labs", method="butter_cms",
+        title="Ikigai Labs Documentation",
+        api_url="https://first-api.ikigailabs.io/component/"
+                "get-content-management-system-documentations",
+        api_path="/v2/content/?keys=page",
+        site_root="https://docs.ikigailabs.io",
+        source_url="https://docs.ikigailabs.io/",
+        license="\u00a9 Ikigai Labs",
     ),
     DocSource(
         key="bauplan", company="Bauplan", method="sitemap",
@@ -308,6 +339,117 @@ SOURCES: list[DocSource] = [
         pages=("https://www.semanticarts.com/gist/",),
         cap=50, source_url="https://www.semanticarts.com/gist/",
         license="\u00a9 Semantic Arts (gist released under CC BY)",
+    ),
+    # HQDM — Matthew West's 4-dimensionalist data model, as implemented for the
+    # UK Information Management Framework. The book is paywalled; these repos are
+    # the open expression of the same entity-relationship model.
+    DocSource(
+        key="hqdm", company="HQDM", method="git",
+        collection="Specifications",
+        title="HQDM \u2014 High Quality Data Model (4-dimensionalist)",
+        repo="https://github.com/gchq/HQDM",
+        file_globs=("*.md",),
+        source_url="https://github.com/gchq/HQDM",
+        license="Apache-2.0 \u2014 \u00a9 Crown Copyright (GCHQ)",
+    ),
+    DocSource(
+        key="magmacore", company="MagmaCore", method="git",
+        collection="Specifications",
+        title="Magma Core \u2014 HQDM/4D Linked-Data Reference Implementation",
+        repo="https://github.com/gchq/MagmaCore",
+        file_globs=("*.md",),
+        source_url="https://github.com/gchq/MagmaCore",
+        license="Apache-2.0 \u2014 \u00a9 Crown Copyright (GCHQ)",
+    ),
+    # Industrial Ontologies Foundry — the BFO-based (3D) counterpart, kept
+    # alongside HQDM so the 3D/4D contrast is documented from both sides.
+    DocSource(
+        key="iof", company="Industrial Ontologies Foundry", method="git",
+        collection="Specifications",
+        title="Industrial Ontologies Foundry (IOF) \u2014 Core & Domain Ontologies",
+        repo="https://github.com/iofoundry/ontology",
+        file_globs=("*.md",),
+        source_url="https://www.industrialontologies.org/",
+        license="\u00a9 Industrial Ontologies Foundry / OAGi (CC BY)",
+    ),
+    # --- Philosophy: encyclopedia entries on time, persistence and process ---
+    # The library argues about whether a thing stays the same thing through
+    # change (bitemporal modelling, object-centric event data, 3D/4D upper
+    # ontologies) while holding none of the philosophy that debate came from.
+    # SEP and IEP are free, citable, and survey exactly the missing ground.
+    DocSource(
+        key="sep-temporality", company="Stanford Encyclopedia of Philosophy",
+        method="pages", collection="Philosophy",
+        title="SEP \u2014 Time, Persistence, Identity & Process",
+        pages=(
+            # identity over time / the 3D-4D debate
+            "https://plato.stanford.edu/entries/identity-time/",
+            "https://plato.stanford.edu/entries/temporal-parts/",
+            "https://plato.stanford.edu/entries/identity/",
+            "https://plato.stanford.edu/entries/identity-personal/",
+            "https://plato.stanford.edu/entries/identity-relative/",
+            "https://plato.stanford.edu/entries/ordinary-objects/",
+            "https://plato.stanford.edu/entries/material-constitution/",
+            "https://plato.stanford.edu/entries/sortals/",
+            "https://plato.stanford.edu/entries/essential-accidental/",
+            "https://plato.stanford.edu/entries/intrinsic-extrinsic/",
+            "https://plato.stanford.edu/entries/substance/",
+            "https://plato.stanford.edu/entries/supervenience/",
+            "https://plato.stanford.edu/entries/vagueness/",
+            # mereology
+            "https://plato.stanford.edu/entries/mereology/",
+            "https://plato.stanford.edu/entries/location-mereology/",
+            # time
+            "https://plato.stanford.edu/entries/time/",
+            "https://plato.stanford.edu/entries/presentism/",
+            "https://plato.stanford.edu/entries/mctaggart/",
+            "https://plato.stanford.edu/entries/spacetime-bebecome/",
+            "https://plato.stanford.edu/entries/consciousness-temporal/",
+            "https://plato.stanford.edu/entries/logic-temporal/",
+            # change, events, process
+            "https://plato.stanford.edu/entries/change/",
+            "https://plato.stanford.edu/entries/events/",
+            "https://plato.stanford.edu/entries/process-philosophy/",
+            "https://plato.stanford.edu/entries/causation-metaphysics/",
+            "https://plato.stanford.edu/entries/causation-physics/",
+            "https://plato.stanford.edu/entries/wesley-salmon/",
+            # figures: presocratics through the process tradition
+            "https://plato.stanford.edu/entries/heraclitus/",
+            "https://plato.stanford.edu/entries/parmenides/",
+            "https://plato.stanford.edu/entries/aristotle-metaphysics/",
+            "https://plato.stanford.edu/entries/aristotle-categories/",
+            "https://plato.stanford.edu/entries/aristotle-natphil/",
+            "https://plato.stanford.edu/entries/heidegger/",
+            "https://plato.stanford.edu/entries/whitehead/",
+            "https://plato.stanford.edu/entries/bergson/",
+            "https://plato.stanford.edu/entries/deleuze/",
+            "https://plato.stanford.edu/entries/david-lewis/",
+            "https://plato.stanford.edu/entries/lewis-metaphysics/",
+        ),
+        cap=60, source_url="https://plato.stanford.edu/",
+        license="\u00a9 the individual authors / Metaphysics Research Lab, "
+                "Stanford University \u2014 free to read",
+    ),
+    DocSource(
+        key="iep-temporality", company="Internet Encyclopedia of Philosophy",
+        method="pages", collection="Philosophy",
+        title="IEP \u2014 Time, Persistence & Process",
+        pages=(
+            "https://iep.utm.edu/time/",
+            "https://iep.utm.edu/person-i/",
+            "https://iep.utm.edu/processp/",
+            "https://iep.utm.edu/heraclit/",
+            "https://iep.utm.edu/parmen/",
+            "https://iep.utm.edu/differential-ontology/",
+            "https://iep.utm.edu/substance/",
+            "https://iep.utm.edu/aristotle-metaphysics/",
+            "https://iep.utm.edu/whitehead/",
+            "https://iep.utm.edu/bergson/",
+            "https://iep.utm.edu/heidegge/",
+            "https://iep.utm.edu/deleuze/",
+        ),
+        cap=40, source_url="https://iep.utm.edu/",
+        license="\u00a9 the individual authors / IEP \u2014 free to read",
     ),
 ]
 
@@ -472,11 +614,28 @@ def _next_data_md(session, url) -> tuple[str, str]:
     return title, md.strip()
 
 
+# Markdown endpoints often prepend a blockquote telling AI clients how to fetch
+# the docs ("append .md to the page URL", "connect to the MCP server at …").
+# Repeated once per page it is pure noise for retrieval, so drop it.
+_AGENT_PREAMBLE = re.compile(
+    r"\A(?:>\s*For\s[^\n]*(?:append\s+`?\.md|llms\.txt|MCP server at)[^\n]*\n"
+    r"|>\s*\n)+", re.I)
+
+
+def _strip_agent_preamble(md: str) -> str:
+    prev = None
+    while prev != md:
+        prev = md
+        md = _AGENT_PREAMBLE.sub("", md.lstrip())
+    return md.strip()
+
+
 def _fetch_page_md(session, url, md_suffix) -> tuple[str, str]:
     """Return (title, markdown) for a doc page."""
     if md_suffix:
         try:
-            txt = _get(session, url.rstrip("/") + ".md", as_text=True)
+            txt = _strip_agent_preamble(_get(session, url.rstrip("/") + ".md",
+                                             as_text=True))
             if txt.strip():
                 m = re.match(r"^#\s+(.+)", txt.strip())
                 title = m.group(1).strip() if m else url.rstrip("/").rsplit("/", 1)[-1]
@@ -544,6 +703,45 @@ def import_llms_full(session, src: DocSource) -> tuple[int, str]:
     return 1, txt.strip()
 
 
+def _butter_order(page: dict) -> tuple:
+    grp = page.get("url_group") or {}
+    sub = page.get("url_subgroup") or {}
+    menu = (page.get("menu_item") or [{}])[0]
+    return (grp.get("order") or 999, sub.get("order") or 0,
+            menu.get("order") or 0, page.get("name") or "")
+
+
+def import_butter_cms(session, src: DocSource) -> tuple[int, str]:
+    """Ingest every doc page from a ButterCMS-backed docs SPA in one API call.
+
+    The proxy returns the whole ``page`` collection, so there is nothing to
+    crawl: we only re-derive each page's permalink (``/<group>/<subgroup>/<slug>``,
+    matching the SPA's catch-all route) for the provenance marker.
+    """
+    r = session.get(src.api_url, params={"path": src.api_path}, timeout=TIMEOUT)
+    r.raise_for_status()
+    pages = (((r.json().get("raw_content") or {}).get("data") or {}).get("page") or [])
+    parts, kept, group_seen = [], 0, None
+    for page in sorted(pages, key=_butter_order):
+        body = (page.get("content") or "").strip()
+        if len(body) < 200:
+            continue
+        grp = page.get("url_group") or {}
+        sub = page.get("url_subgroup") or {}
+        slug = page.get("slug-new") or ""
+        url = "/".join(x for x in (src.site_root, grp.get("slug"),
+                                   sub.get("slug"), slug) if x)
+        group_name = grp.get("name") or "Documentation"
+        if group_name != group_seen:
+            parts.append(f"\n\n## {group_name}\n")
+            group_seen = group_name
+        md = html_to_markdown(H.fromstring(f"<div>{body}</div>"))
+        parts.append(f"\n\n<!-- source: {url} -->\n")
+        parts.append(f"### {page.get('name') or slug}\n\n{md}")
+        kept += 1
+    return kept, "".join(parts)
+
+
 def import_source(session, src: DocSource, delay, dry_run, force) -> dict:
     dest = LITERATURE / src.collection / src.company / f"{src.company} Documentation.md"
     if dest.exists() and not force:
@@ -558,6 +756,9 @@ def import_source(session, src: DocSource, delay, dry_run, force) -> dict:
     elif src.method == "git":
         n, body = import_git(src, dry_run)
         pages_note = f"{n} markdown files from {src.repo}"
+    elif src.method == "butter_cms":
+        n, body = import_butter_cms(session, src)
+        pages_note = f"{n} pages (via the ButterCMS content API)"
     else:
         if src.method in ("sitemap", "next_data"):
             raw = _sitemap_locs(session, src.sitemaps)

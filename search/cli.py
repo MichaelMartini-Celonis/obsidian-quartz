@@ -93,6 +93,52 @@ def cmd_enrich(args) -> int:
     return 0
 
 
+def cmd_ocr(args) -> int:
+    from . import ocr as ocrmod
+
+    con = dbmod.connect()
+    try:
+        if args.status:
+            for label, value in ocrmod.status(con):
+                print(f"  {label:32s} {value:>12s}")
+            return 0
+        if args.list:
+            for c in ocrmod.candidates(con, args.only_empty, args.low_density,
+                                       args.front_matter, args.doc_id, args.limit):
+                print(f"  {c.n_pages:>4} pg  {c.reason:14s} {c.rel_path[:78]}")
+            return 0
+        ocrmod.run(con, only_empty=args.only_empty, low_density=args.low_density,
+                   front_matter=args.front_matter, doc_id=args.doc_id, mode=args.mode,
+                   dpi=args.dpi, backend=args.backend, limit=args.limit,
+                   max_pages=args.max_pages, redo=args.redo,
+                   retry_failed=args.retry_failed)
+        if args.promote:
+            embedder = get_embedder()
+            n = indexmod.reindex_ocr_documents(con, embedder)
+            print(f"promoted {n} documents into the index")
+    finally:
+        con.close()
+    return 0
+
+
+def cmd_metadata(args) -> int:
+    from . import metadata as metamod
+
+    con = dbmod.connect()
+    try:
+        if args.status:
+            for label, value in metamod.status(con):
+                print(f"  {label:32s} {value}")
+            return 0
+        stats = metamod.backfill(con, limit=args.limit, redo=args.redo)
+    finally:
+        con.close()
+    print(f"\nupdated={stats['updated']} abstracts={stats['abstracts']} "
+          f"pdf_dates={stats['pdf_dates']} image_only={stats['image_only']} "
+          f"missing_file={stats['missing_file']} total={stats['total']}")
+    return 0
+
+
 def cmd_graph(args) -> int:
     con = dbmod.connect(graph=True)
     try:
@@ -195,6 +241,39 @@ def main(argv=None) -> int:
     p_enrich.add_argument("--limit", type=int, default=None)
     p_enrich.add_argument("--redo", action="store_true", help="re-enrich already-done docs")
     p_enrich.set_defaults(func=cmd_enrich)
+
+    p_meta = sub.add_parser(
+        "metadata", help="backfill container metadata + abstracts (no model needed)")
+    p_meta.add_argument("--limit", type=int, default=None)
+    p_meta.add_argument("--redo", action="store_true",
+                        help="recompute for documents already through the stage")
+    p_meta.add_argument("--status", action="store_true", help="coverage report")
+    p_meta.set_defaults(func=cmd_metadata)
+
+    p_ocr = sub.add_parser("ocr", help="OCR image-only/thin PDFs with a local VLM")
+    p_ocr.add_argument("--only-empty", action="store_true",
+                       help="PDFs with no text layer at all (the default selection)")
+    p_ocr.add_argument("--low-density", action="store_true",
+                       help=f"also PDFs under {config.OCR_MIN_CHARS_PER_PAGE} chars/page")
+    p_ocr.add_argument("--front-matter", action="store_true",
+                       help="pages 1-2 of every PDF (the metadata pass; ~25h)")
+    p_ocr.add_argument("--doc-id", help="one document, by content hash")
+    p_ocr.add_argument("--mode", default="text", choices=["text", "layout", "table"],
+                       help="text: reading order | layout: + box tokens")
+    p_ocr.add_argument("--backend", default=None,
+                       help=f"default {config.OCR_BACKEND}")
+    p_ocr.add_argument("--dpi", type=int, default=None,
+                       help=f"render resolution (default {config.OCR_DPI}; 300 for hard scans)")
+    p_ocr.add_argument("--limit", type=int, default=None, help="max documents")
+    p_ocr.add_argument("--max-pages", type=int, default=None, help="max pages per document")
+    p_ocr.add_argument("--redo", action="store_true", help="re-OCR cached pages")
+    p_ocr.add_argument("--retry-failed", action="store_true",
+                       help="re-OCR only the pages that errored (e.g. GPU timeouts)")
+    p_ocr.add_argument("--promote", action="store_true",
+                       help="re-index the OCR'd documents so the text becomes searchable")
+    p_ocr.add_argument("--list", action="store_true", help="show candidates and exit")
+    p_ocr.add_argument("--status", action="store_true", help="coverage + failure report")
+    p_ocr.set_defaults(func=cmd_ocr)
 
     p_graph = sub.add_parser("graph", help="build/query the knowledge graph (duckpgq)")
     p_graph.add_argument("--build", action="store_true", help="(re)build graph tables + property graph")

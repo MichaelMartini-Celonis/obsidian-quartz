@@ -5,35 +5,45 @@ alwaysApply: true
 
 # Context Model agent context
 
-A local checkout of the Celonis Context Model documentation wiki lives under the **gitignored `reference/` folder** at the root of the knowledge repository:
+A local checkout of the Celonis Context Model documentation wiki lives under the **gitignored `reference/celonis/` folder** at the root of the knowledge repository, alongside a few sibling Celonis reference checkouts:
 
-`reference/context-model-documentation/`  (absolute: `~/docs/reference/context-model-documentation/`)
+`reference/celonis/context-model-documentation/`  (absolute: `~/docs/reference/celonis/context-model-documentation/`)
 
 - **Remote:** https://github.com/celonis/context-model-documentation
 - **Purpose:** Directional wiki for the Context Model project (codename `pig-sl`) — vision, architecture, component model, decisions, and observed materials.
 - **Reference only.** It has its own independent `.git`, is gitignored by this project, and must not be committed from here.
 
-> Tip: root an agent session at `~/docs` to browse the whole knowledge repository (Literature, Inbox, and this Context Model reference). See `~/docs/README.md`.
+Sibling checkouts under `reference/celonis/` (also gitignored, own `.git`, reference only):
+
+- `studio-platform-hq/` — [celonis/studio-platform-hq](https://github.com/celonis/studio-platform-hq): Studio Platform team knowledge base — per-initiative `projects/` (multi-user-collaboration, isolated-asset-rendering, granular-asset-permissions, context-model, …) plus a cross-cutting `knowledge/wiki/` (arch, components, operations, postmortems). Deep source on Studio asset locking, package branching, permissions, and the web-fragments migration.
+- `pm-solutions/` — [celonis/pm-solutions](https://github.com/celonis/pm-solutions) (default branch `setup`): Process Mining Solutions team miscellaneous code (e.g. the OGDF/SPQR block-structure discovery pipeline).
+- `pmi-latex-collection/` — [celonis/pmi-latex-collection](https://github.com/celonis/pmi-latex-collection): internal LaTeX documents of the Process Mining Innovation team.
+- `pm-prototyping-env/` — [celonis/pm-prototyping-env](https://github.com/celonis/pm-prototyping-env): Object-Centric Data Model (OCDM) prototyping environment.
+
+> Tip: root an agent session at `~/docs` to browse the whole knowledge repository (Literature, Inbox, and these Celonis reference checkouts). See `~/docs/README.md`.
 
 ## When to use it
 
 Consult this checkout when the task involves Context Model, pig-sl, PI Graph, Perspectives, Functions, Object Types, Event Sources, or related Celonis platform semantics.
 
-Read `reference/context-model-documentation/AGENTS.md` before making substantive changes inside that checkout.
+For Studio *platform* engineering topics — asset locking, package branching, granular permissions, the web-fragments/asset-fragment migration, package-manager/pacman internals, incidents/postmortems — consult the sibling `studio-platform-hq/` checkout (its `projects/*/knowledge/` and top-level `knowledge/wiki/`). Its `projects/context-model/` overlaps with this wiki from the platform side.
+
+Read `reference/celonis/context-model-documentation/AGENTS.md` before making substantive changes inside that checkout.
 
 ## Orientation (read order)
 
-1. `reference/context-model-documentation/README.md`
-2. `reference/context-model-documentation/1-direction-and-vision/`
-3. `reference/context-model-documentation/2-architecture/`
-4. `reference/context-model-documentation/3-context-model/`
-5. `reference/context-model-documentation/4-decisions/`
-6. `reference/context-model-documentation/5-observed-materials/`
+1. `reference/celonis/context-model-documentation/README.md`
+2. `reference/celonis/context-model-documentation/1-direction-and-vision/`
+3. `reference/celonis/context-model-documentation/2-architecture/`
+4. `reference/celonis/context-model-documentation/3-context-model/`
+5. `reference/celonis/context-model-documentation/4-decisions/`
+6. `reference/celonis/context-model-documentation/5-observed-materials/`
 
 Do **not** auto-load `y-synthesized-documents/` unless a human explicitly references a file there.
 
 ## Updating the checkout
 
 ```bash
-git -C ~/docs/reference/context-model-documentation pull --ff-only
+git -C ~/docs/reference/celonis/context-model-documentation pull --ff-only
+git -C ~/docs/reference/celonis/studio-platform-hq pull --ff-only
 ```

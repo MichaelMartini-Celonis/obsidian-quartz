@@ -128,6 +128,12 @@ SOURCES: list[BlogSource] = [
         keep_re=r"^https://www\.cs\.cmu\.edu/~pavlo/blog/\d{4}/\d{2}/[^/]+\.html$",
         base="https://www.cs.cmu.edu", title_xpath="//title/text()",
     ),
+    BlogSource(
+        key="senzing", company="Senzing",
+        sitemap="https://senzing.com/post-sitemap.xml",
+        keep_re=r"^https://senzing\.com/[^/]+/$",
+        base="https://senzing.com",
+    ),
 ]
 
 

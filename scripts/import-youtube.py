@@ -16,7 +16,10 @@ Design (so we don't hammer / get blocked by YouTube):
     pending entries — it never fetches transcripts.
   * ``run`` drains the backlog with a delay + jitter between videos and
     **exponential backoff** when YouTube signals blocking, so it can be left
-    running in the background (see ``scripts/youtube-transcribe-bg.sh``).
+    running in the background (see ``scripts/youtube-transcribe-bg.sh``). When
+    the transcript API reports a block it retries once through yt-dlp's caption
+    tracks; note both read YouTube's ``timedtext`` endpoint, so a genuine IP ban
+    needs a different IP or a proxy rather than a retry.
 
 Usage::
 
@@ -196,13 +199,16 @@ def resolve_query(query: str) -> dict | None:
     return {"id": e.get("id"), "title": e.get("title"), "url": e.get("url")}
 
 
-def fetch_metadata(url: str) -> dict | None:
+def _ytdlp_info(url: str) -> dict | None:
     try:
         with _ydl({}) as ydl:
-            info = ydl.extract_info(url, download=False)
+            return ydl.extract_info(url, download=False)
     except Exception as exc:  # noqa: BLE001
         print(f"    ! metadata failed {url}: {exc}", file=sys.stderr)
         return None
+
+
+def _meta_from_info(info: dict | None) -> dict | None:
     if not info:
         return None
     return {
@@ -216,6 +222,10 @@ def fetch_metadata(url: str) -> dict | None:
         "description": (info.get("description") or "")[:1500],
         "tags": info.get("tags") or [],
     }
+
+
+def fetch_metadata(url: str) -> dict | None:
+    return _meta_from_info(_ytdlp_info(url))
 
 
 # --------------------------------------------------------------------------- #
@@ -248,6 +258,117 @@ def fetch_transcript(video_id: str, langs: list[str]):
         if type(exc).__name__ in _BLOCK_EXC:
             raise BlockedError(str(exc)) from exc
         raise
+
+
+# --------------------------------------------------------------------------- #
+# yt-dlp caption tracks (fallback when the transcript API is IP-blocked)
+# --------------------------------------------------------------------------- #
+
+_VTT_TS = re.compile(r"(\d+):(\d{2}):(\d{2})[.,](\d{3})\s+-->")
+
+
+def _pick_lang(tracks: dict, prefs: list[str]) -> str | None:
+    for want in prefs:
+        if not want:
+            continue
+        for code in tracks:
+            if code == want or code.split("-")[0] == want.split("-")[0]:
+                return code
+    return None
+
+
+def _select_caption_track(info: dict, langs: list[str]):
+    """Pick (track, language_code, is_generated) out of a yt-dlp info dict.
+
+    Manually authored subtitles beat automatic ones, and the video's own
+    language beats YouTube's machine translations — the automatic-caption map
+    offers ~200 translated variants of the single real track.
+    """
+    original = info.get("language")
+    prefs = ([original] if original else []) + list(langs)
+    for tracks, generated in ((info.get("subtitles") or {}, False),
+                              (info.get("automatic_captions") or {}, True)):
+        if not tracks:
+            continue
+        code = _pick_lang(tracks, prefs)
+        if code is None and not generated:
+            code = next(iter(tracks))
+        if code:
+            return tracks[code], code, generated
+    return None, None, False
+
+
+def _parse_json3(text: str) -> list[tuple[float, str]]:
+    out = []
+    for ev in (json.loads(text).get("events") or []):
+        segs = ev.get("segs")
+        if not segs:
+            continue
+        txt = "".join(s.get("utf8", "") for s in segs)
+        if txt.strip():
+            out.append((ev.get("tStartMs", 0) / 1000.0, txt))
+    return out
+
+
+def _parse_vtt(text: str) -> list[tuple[float, str]]:
+    out: list[tuple[float, str]] = []
+    start: float | None = None
+    buf: list[str] = []
+    for raw in text.splitlines():
+        m = _VTT_TS.match(raw.strip())
+        if m:
+            if start is not None and buf:
+                out.append((start, " ".join(buf)))
+            h, mnt, s, ms = (int(x) for x in m.groups())
+            start, buf = h * 3600 + mnt * 60 + s + ms / 1000.0, []
+            continue
+        line = re.sub(r"<[^>]+>", "", raw).strip()
+        if line and not line.startswith(("WEBVTT", "Kind:", "Language:", "NOTE")):
+            if not buf or buf[-1] != line:
+                buf.append(line)
+    if start is not None and buf:
+        out.append((start, " ".join(buf)))
+    return out
+
+
+def captions_from_info(info: dict, langs: list[str]):
+    """Return (snippets, language_code, is_generated) from yt-dlp caption URLs."""
+    track, code, generated = _select_caption_track(info, langs)
+    if not track:
+        return None
+    by_ext = {t.get("ext"): t.get("url") for t in track if t.get("url")}
+    for ext, parse in (("json3", _parse_json3), ("vtt", _parse_vtt)):
+        url = by_ext.get(ext)
+        if not url:
+            continue
+        try:
+            with _ydl({}) as ydl:
+                text = ydl.urlopen(url).read().decode("utf-8", "replace")
+            snippets = parse(text)
+        except Exception as exc:  # noqa: BLE001
+            print(f"    ! caption {ext} failed: {str(exc)[:80]}", file=sys.stderr)
+            continue
+        if snippets:
+            return snippets, code, generated
+    return None
+
+
+def obtain_transcript(entry: dict, langs: list[str]):
+    """Fetch a transcript, falling back to yt-dlp captions when the transcript
+    API is IP-blocked. Returns (snippets, lang, is_generated, meta, via)."""
+    vid, url = entry["video_id"], entry["url"]
+    try:
+        snippets, lang, is_generated = fetch_transcript(vid, langs)
+        if not snippets:
+            raise RuntimeError("empty transcript")
+        return snippets, lang, is_generated, fetch_metadata(url) or {"id": vid}, "api"
+    except BlockedError:
+        info = _ytdlp_info(url)
+        alt = captions_from_info(info, langs) if info else None
+        if not alt:
+            raise
+        snippets, lang, is_generated = alt
+        return snippets, lang, is_generated, _meta_from_info(info) or {"id": vid}, "yt-dlp"
 
 
 # --------------------------------------------------------------------------- #
@@ -456,19 +577,18 @@ def cmd_run(args) -> int:
 
         processed += 1
         try:
-            snippets, lang, is_generated = fetch_transcript(vid, args.languages)
+            snippets, lang, is_generated, meta, via = obtain_transcript(
+                entry, args.languages)
             consecutive_blocks = 0
             backoff = args.sleep
-            if not snippets:
-                raise RuntimeError("empty transcript")
-            meta = fetch_metadata(entry["url"]) or {"id": vid}
             dest = write_transcript_md(meta, snippets, lang, is_generated, entry)
             entry["status"] = "done"
             entry["path"] = str(dest.relative_to(DOCS_ROOT))
             entry["title"] = meta.get("title") or entry.get("title")
             entry["error"] = None
             done += 1
-            print(f"  [done] {vid}  {dest.relative_to(TRANSCRIPTS_DIR)}")
+            tag = "" if via == "api" else f"  (via {via})"
+            print(f"  [done] {vid}  {dest.relative_to(TRANSCRIPTS_DIR)}{tag}")
         except BlockedError as exc:
             consecutive_blocks += 1
             entry["attempts"] += 1

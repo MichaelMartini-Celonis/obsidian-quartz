@@ -45,10 +45,36 @@ on-disk `Literature/` corpus.
 | `utndatasystems.github.io/publications`                                                 | UTN Data Systems — 14 PDFs                                                                                                                                                                                                                                                                                         | 🔄                       |
 | `informatik.tu-darmstadt.de/systems/.../publications`                                   | TU Darmstadt Systems — JS template backed by `tubiblio`; no scrapable PDFs                                                                                                                                                                                                                                         | ⛔                        |
 | `ir.cwi.nl` (Database Architectures)                                                    | CWI repository — harvested via the SPA's `search/query` API (`filter=affiliation:Database Architectures`, paged via POST `query.from`); 1040 DA pubs → 547 open-access PDFs (types: article/inProceedings/techReport/dissertation/bookChapter/masterThesis/proceedings). Real PDF filenames resolved per pub page. | 🔄                       |
+| `cs.stanford.edu/people/jure/pubs/`                                                     | Jure Leskovec (Stanford SNAP) — 328 URLs selected by `scripts/select-jure-pubs.py`, 326 fetched; **308 were already in the library** (content-hash duplicates), so the round netted ~18 documents                                                                                                                    | ✅                        |
+| `research.borosolutions.net`                                                             | BORO Solutions / Chris Partridge (4D extensionalist ontology, bCLEARer, 4DSIG & CIH/CPNI papers). The site is **Cloudflare bot-protected (403)**, so `scripts/boro-research.py` harvests the same works through OpenAlex + Unpaywall/arXiv instead, with a topical filter to defeat author homonyms. 128 documents imported, including 57 conference decks (`.ppsx`) | ✅                        |
 | `research.tue.nl` Pure — Dirk Fahland                                                   | TU/e research portal                                                                                                                                                                                                                                                                                               | ⛔ 403; PDFs gated        |
 | `research.tue.nl` Pure — Boudewijn van Dongen                                           | TU/e research portal                                                                                                                                                                                                                                                                                               | ⛔ 403; PDFs gated        |
 | `researchgate.net/profile/Mathias-Weske`                                                | ResearchGate                                                                                                                                                                                                                                                                                                       | ⛔ 403; blocks automation |
 
+
+---
+
+## 1b. Common OA / preprint lookup backends
+
+Cross-cutting resolvers used by the paper harvesters whenever a venue listing
+gives only *metadata* (title / authors / DOI) and no direct PDF. Implemented in
+`scripts/paperfetch.py`; registered in `scripts/conference-sources.txt`.
+
+
+| Source | URL | Lookup | Used by | Status |
+| ------ | --- | ------ | ------- | ------ |
+| **arXiv** | https://arxiv.org/ (API `export.arxiv.org/api/query`) | Title search → fuzzy title + author-surname confirm → `arxiv.org/pdf/<id>` | SIGMOD / ICDE harvesters; Luna Dong; rxin/db-readings; ad-hoc `paperfetch.py lookup` | ✅ |
+| **Unpaywall** | https://unpaywall.org/ (API `api.unpaywall.org/v2/<doi>`) | DOI → best OA location with `url_for_pdf` (gold / hybrid / bronze / green) | CAIS; ICDE (DOI fallback); Luna Dong; rxin/db-readings; ad-hoc `paperfetch.py lookup` | ✅ |
+| **OpenAlex** | https://openalex.org/ (API `api.openalex.org/works`) | Title/author search → `best_oa_location` / `locations[].pdf_url`; also the only backend of these that indexes philosophy and grey literature | temporality-ontology; boro-research; ad-hoc `paperfetch.py lookup` | ✅ |
+| **Semantic Scholar** | https://www.semanticscholar.org/product/api (API `api.semanticscholar.org/graph/v1/paper/search`) | Title search → `openAccessPdf`, which often points at an author or repository copy the publisher-centric backends miss | temporality-ontology (last resort) | 🔑 **needs `SEMANTICSCHOLAR_API_KEY`** — the unauthenticated tier 429s every request from this network (measured 2026-08-14: ~150 s of backoff per title, zero results), so the resolver returns `None` immediately when no key is set rather than slowing every harvest down |
+
+
+Ad-hoc lookup (no harvester run needed):
+
+```bash
+scripts/.venv/bin/python scripts/paperfetch.py lookup --title "DeepMapping: Learned Data Mapping"
+scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.1109/ICDE60146.2024.00008
+```
 
 ---
 
@@ -67,7 +93,8 @@ plus a curated award-paper set:
 | Venue                        | Open access?                                    | Plan                                | Status |
 | ---------------------------- | ----------------------------------------------- | ----------------------------------- | ------ |
 | **PVLDB** (`vldb.org/pvldb`) | ✅ fully open (`volNN/p*.pdf`)                   | Harvest vols 14–18 (2021–2025)      | 🔄     |
-| **SIGMOD**                   | ⛔ ACM DL paywall                                | Author-page + award coverage        | 🧭     |
+| **SIGMOD**                   | ⛔ ACM DL paywall                                | Author-page + award coverage; `sigmod-arxiv.py` covers **2015–2026** (research + industry/demo/tutorial) → arXiv, Unpaywall DOI fallback. Two DBLP layouts: one `conf/sigmod/sigmodYYYY` volume per year to 2022, then PACMMOD research volumes + a `sigmodYYYYc` companion | 🧭     |
+| **ICDE**                     | ⛔ IEEE Xplore paywall                           | DBLP (2021–2025) + 2026 HTML → arXiv, Unpaywall DOI fallback (`icde-arxiv.py`) | 🧭     |
 | **BPM**                      | ⛔ Springer LNCS/LNBIP (workshops open via CEUR) | Extend author-page coverage; awards | 🧭     |
 | **ICPM**                     | ⛔ IEEE (workshops open via CEUR)                | Extend author-page coverage; awards | 🧭     |
 | **CAiSE**                    | ⛔ Springer LNCS                                 | Author-page + award coverage        | 🧭     |

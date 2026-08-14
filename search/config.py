@@ -46,7 +46,8 @@ def is_internal_rel_path(rel_path: str) -> bool:
     return rel_path == f"Literature/{INTERNAL_COLLECTION}" or rel_path.startswith(prefix)
 
 # File types we ingest. Others are ignored.
-IMPORT_SUFFIXES = {".pdf", ".docx", ".md", ".txt", ".ipynb", ".bpmn", ".epub", ".pptx"}
+IMPORT_SUFFIXES = {".pdf", ".docx", ".md", ".txt", ".ipynb", ".bpmn", ".epub",
+                   ".pptx", ".ppsx"}
 
 # Chunking (character based, paragraph aware).
 CHUNK_SIZE = int(os.environ.get("SEARCH_CHUNK_SIZE", "1200"))
@@ -71,6 +72,29 @@ EMBEDDING_MODEL = os.environ.get("SEARCH_EMBEDDING_MODEL", "text-embedding-3-sma
 EMBEDDING_DIM = int(os.environ.get("SEARCH_EMBEDDING_DIM", "0"))
 
 HASH_DIM = int(os.environ.get("SEARCH_HASH_DIM", "256"))
+
+# --- OCR / document parsing -------------------------------------------------
+# Local by default: a small document-parsing VLM runs on Apple silicon through
+# MLX, so page images never leave the machine (unlike the `gateway-vision`
+# backend). The model stack lives in its own venv and is driven as a worker
+# subprocess, keeping this venv free of mlx/torch. See DESIGN-ocr-metadata.md §2.
+OCR_BACKEND = os.environ.get("SEARCH_OCR_BACKEND", "mlx-paddleocr-vl").strip().lower()
+# Overrides the backend's default weights (e.g. an 8-bit conversion, or a
+# locally converted PaddleOCR-VL-1.6 build).
+OCR_MODEL = os.environ.get("SEARCH_OCR_MODEL", "").strip()
+OCR_PYTHON = Path(os.environ.get(
+    "SEARCH_OCR_PYTHON", str(DOCS_ROOT / "scripts" / ".venv-ocr" / "bin" / "python")))
+OCR_DPI = int(os.environ.get("SEARCH_OCR_DPI", "200"))
+# Longest rendered edge in pixels. 2200 ≈ a letter page at 200 dpi.
+OCR_MAX_EDGE = int(os.environ.get("SEARCH_OCR_MAX_EDGE", "2200"))
+# A dense journal page measures ~5k characters ≈ 1.5k tokens, so 4096 is ample.
+# It is also a cost ceiling: a page the model loops on is abandoned sooner, and
+# long generations are what trip the macOS GPU watchdog.
+OCR_MAX_TOKENS = int(os.environ.get("SEARCH_OCR_MAX_TOKENS", "4096"))
+# A page that takes longer than this is abandoned and the worker restarted.
+OCR_PAGE_TIMEOUT = float(os.environ.get("SEARCH_OCR_PAGE_TIMEOUT", "240"))
+# Below this, a PDF's text layer is treated as missing (the OCR trigger).
+OCR_MIN_CHARS_PER_PAGE = int(os.environ.get("SEARCH_OCR_MIN_CHARS_PER_PAGE", "200"))
 
 # --- Chat / LLM enrichment (Celonis AI Gateway, chat models only) -----------
 # Used to clean bibliographic metadata and extract keywords/concepts. Optional:

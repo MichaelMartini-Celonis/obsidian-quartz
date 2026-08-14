@@ -62,11 +62,12 @@ For pipeline testing without any model, `SEARCH_EMBEDDER=hash` uses a determinis
 Run from `~/docs`:
 
 ```bash
-# Build / refresh the index (Literature + Outbox by default). Incremental & idempotent.
+# Build / refresh the index (Literature + Transcripts + notebooks + Outbox by default). Incremental & idempotent.
 scripts/.venv/bin/python -m search.cli index
 
 # Limit / scope while testing:
 scripts/.venv/bin/python -m search.cli index --roots literature --limit 50
+scripts/.venv/bin/python -m search.cli index --roots notebooks     # just the notebooks/ root
 scripts/.venv/bin/python -m search.cli index --reset          # drop & rebuild (needed if the embedder dim changes)
 
 # Query:
@@ -103,6 +104,56 @@ scripts/.venv/bin/python -m search.cli enrich --only-review   # just low-confide
 Results are cached in `doc_enrichment` (keyed by content hash), so it is idempotent and resumable.
 Override the model with `SEARCH_CHAT_MODEL` (default `claude-haiku-4-5-20251001`). Requires VPN.
 
+### Container metadata + abstracts (no model, no network)
+
+Deterministic reads of the PDF container — creation dates, producer, XMP packet, embedded font
+count, text-layer density — plus an anchored abstract lifted from the existing text layer. Every
+value is written with its provenance to `field_provenance`, so a later pass can tell a Crossref fact
+from a model's guess and refresh only the weak fields:
+
+```bash
+scripts/.venv/bin/python -m search.cli metadata            # backfill everything missing
+scripts/.venv/bin/python -m search.cli metadata --status   # coverage report
+```
+
+### OCR for scans — a local VLM (default), no data egress
+
+Image-only PDFs are invisible to search; a document-parsing VLM makes them readable. It runs
+**locally on Apple silicon via MLX** — `PaddleOCR-VL` (0.9B, Apache-2.0) at ~5 s/page on an M4 Max —
+so page images never leave the machine and `Literature/Celonis Internal/` scans are fair game:
+
+```bash
+scripts/.venv/bin/python -m search.cli ocr --list                  # what would be processed
+scripts/.venv/bin/python -m search.cli ocr --only-empty            # no text layer, or an unusable one
+scripts/.venv/bin/python -m search.cli ocr --low-density --promote  # + thin ones, then re-index
+scripts/.venv/bin/python -m search.cli ocr --retry-failed          # mop up GPU timeouts
+scripts/.venv/bin/python -m search.cli ocr --status                # coverage + failure report
+```
+
+`--only-empty` covers more than empty PDFs, because "has text" and "has *readable* text" are
+different questions. 98 documents in this corpus extract thousands of characters per page of glyph
+names (`/BW/CT/DA`), control codes, or words with every space dropped — a font without a usable
+`ToUnicode` map. They pass every length-based check while being unsearchable, and their heuristic
+titles are derived from the garbage (`and hN - 23, 254768.pdf`). The `metadata` stage scores each
+text layer for how language-like it is (`text_readable_ratio`, function-word share across en/de/nl/fr)
+and flags the failures as `text_garbled`; see `DESIGN-ocr-metadata.md` §3.1 for why one threshold is
+not enough to separate them from Slovenian prose and slide decks.
+
+The model stack lives in a **separate venv** so this one stays free of a GPU runtime:
+
+```bash
+uv venv --python 3.13 scripts/.venv-ocr
+uv pip install --python scripts/.venv-ocr/bin/python mlx-vlm pypdfium2
+```
+
+`ocr` is never part of `index`: it is 3–4 orders of magnitude slower than `pypdf`, so it writes to the
+`doc_ocr` cache and `index` merely *prefers* that cache for documents whose own text layer is missing
+or thin. Re-indexing never re-OCRs. Output is validated before it is trusted — a repetition guard
+(these models degenerate into loops), a yield guard that distinguishes a blank page from an unread
+one by ink coverage, and a per-page timeout. Swap models with `--backend mlx-glm-ocr` /
+`mlx-deepseek-ocr-2` / `mlx-granite-docling`, or set `SEARCH_OCR_BACKEND`. Rationale and measurements:
+`DESIGN-ocr-metadata.md` §2.
+
 ### Knowledge graph (duckpgq) & graph-expanded search
 
 ```bash
@@ -123,6 +174,13 @@ Per document: content hash (`doc_id`), path, filetype, size/mtime, `source` (Lit
 page-anchored **chunks** with embeddings. Low-confidence bibliographic parses are flagged
 `needs_review`. Richer author/keyword/topic/citation extraction is Phase 1–2.
 
+Measured against the current index, this leaves large gaps: **68%** of documents have no authors and
+**82%** no venue. Two of the gaps are now closed — `abstract` went from 0% to **61%** and the OCR
+trigger (`has_text_layer`, `chars_per_page`, `is_image_only`, `text_garbled`) is materialized rather
+than re-derived by ad-hoc SQL — by the `metadata` and `ocr` stages above. The remaining tiers (layout-aware author
+and venue extraction, parsed references for `CITES`, external authority reconciliation) are specified
+in **`DESIGN-ocr-metadata.md`** §4–6.
+
 ## Layout
 
 | File | Purpose |
@@ -137,8 +195,12 @@ page-anchored **chunks** with embeddings. Low-confidence bibliographic parses ar
 | `llm.py` | Celonis AI Gateway chat client (token via `celai get api-key`). |
 | `enrich.py` | LLM metadata cleanup → `doc_enrichment` + document rows. |
 | `graph.py` | Entity tables, `SIMILAR_TO` kNN, `duckpgq` property graph + graph queries. |
+| `metadata.py` | Tier-0 container metadata, abstract extraction, `field_provenance` merge rule. |
+| `ocr.py` | OCR stage: candidate selection, worker protocol, output validation, `doc_ocr` cache. |
+| `ocr_worker.py` | Runs in `scripts/.venv-ocr`: rasterizes pages (`pypdfium2`) and drives the VLM (MLX). |
 | `split_proceedings.py` | Split proceedings PDFs into per-paper PDFs on outline bookmarks. |
-| `cli.py` | `index` / `search` / `stats` / `enrich` / `graph` commands. |
+| `cli.py` | `index` / `search` / `stats` / `enrich` / `metadata` / `ocr` / `graph` commands. |
+| `DESIGN-ocr-metadata.md` | Design + measurements: local OCR backend choice, tiered metadata schema. |
 
 The DuckDB file (`search/index.duckdb`) is gitignored and rebuilt from the corpus.
 

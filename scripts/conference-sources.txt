@@ -21,6 +21,19 @@ method = arXiv API title match (fuzzy title ratio + author-surname confirmation)
 script = scripts/sigmod-arxiv.py   (gather | match | download | all)
 out    = Inbox/sigmod-arxiv/<year>/<track>/
 
+conf   = ICDE
+years  = 2021, 2022, 2023, 2024, 2025, 2026
+list   = DBLP TOC XML — conf/icde/icde<year> (2021–2025; research+companion mixed
+         as track "main")
+         + https://icde2026.github.io/accepted-papers.html (research) and sibling
+         pages ia-papers / demo-papers / tkde-papers / deft-papers / phd-papers
+         for 2026 (not yet in DBLP)
+method = parse DBLP / accepted-papers HTML for title/authors; resolve PDF via
+         (1) arXiv title match, (2) Unpaywall DOI lookup when DBLP provides a
+         DOI. IEEE proceedings themselves are paywalled.
+script = scripts/icde-arxiv.py     (gather | match | download | all)
+out    = Inbox/icde-arxiv/<year>/<track>/
+
 conf   = CAIS
 years  = 2026
 list   = https://www.caisconf.org/program/2026/papers/  (per-paper pages carry the ACM DOI)
@@ -91,8 +104,32 @@ method = download in-repo PDFs directly from raw.githubusercontent.com; for each
 script = scripts/rxin-db-readings.py   (gather | resolve [--limit N] | download | all)
 out    = Inbox/db-readings/<section>/
 
+# --- Common sources (shared OA / preprint resolvers) -------------------------
+# Not conferences themselves — cross-cutting backends that the harvesters above
+# call via scripts/paperfetch.py (and the dedicated SIGMOD/ICDE arXiv scripts).
+
+conf   = arXiv
+years  = any (title / author match; not year-scoped)
+list   = https://arxiv.org/  (API: http://export.arxiv.org/api/query)
+method = title search (ti:"…") with fuzzy title-ratio + author-surname
+         confirmation; PDF at https://arxiv.org/pdf/<id>
+script = scripts/paperfetch.py::arxiv_pdf
+         (+ inline matchers in sigmod-arxiv.py / icde-arxiv.py);
+         also ``paperfetch.py lookup --title …``
+out    = used as a resolver; PDFs land in the calling harvester's Inbox/
+
+conf   = Unpaywall
+years  = any (DOI lookup; not year-scoped)
+list   = https://unpaywall.org/  (API: https://api.unpaywall.org/v2/<doi>)
+method = DOI → best open-access location with a url_for_pdf (gold/hybrid/bronze
+         / green). Requires a contact email (paperfetch.git_email()).
+script = scripts/paperfetch.py::unpaywall_pdf
+         (used by cais-acm.py, icde-arxiv.py, lunadong-reading-list.py,
+          rxin-db-readings.py); also ``paperfetch.py lookup --doi …``
+out    = used as a resolver; PDFs land in the calling harvester's Inbox/
+
 # --- Shared helper -----------------------------------------------------------
 # scripts/paperfetch.py: common requests session + resilient PDF downloader,
 # title-normalisation / author-surname helpers, IndexDedup (checks a title
-# against search/index.duckdb), and metadata->PDF resolvers (DBLP / Unpaywall /
-# arXiv). Imported by the harvesters above.
+# against search/index.duckdb), and the arXiv / Unpaywall / DBLP resolvers
+# above. Imported by the harvesters in this file.

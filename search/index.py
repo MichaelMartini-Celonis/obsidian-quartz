@@ -164,6 +164,14 @@ def index_file(con, embedder, path: Path) -> str:
 
     ex = extractmod.extract_document(path)
 
+    # A document whose own text layer is missing or thin gets the cached OCR text
+    # instead, if the `ocr` stage has produced any. Extraction stays ignorant of
+    # the database; the preference is applied here, where the doc_id is known.
+    from . import ocr as ocrmod
+
+    if path.suffix.lower() == ".pdf":
+        ocrmod.prefer_ocr(con, doc_id, ex)
+
     chunk_rows: list[tuple[int, int, str]] = []
     total_chars = 0
     ordinal = 0
@@ -217,6 +225,36 @@ def backfill_internal(con) -> int:
         [base, base + "/"],
     )
     return con.execute("SELECT count(*) FROM documents WHERE internal").fetchone()[0]
+
+
+def reindex_ocr_documents(con, embedder) -> int:
+    """Re-index every document that has usable OCR text, so it becomes searchable.
+
+    `index_file` fast-skips unchanged files by content hash, which is exactly what
+    we want everywhere except here: the file did not change, its *extraction* did.
+    Deleting the document row forces the one path that consults the OCR cache.
+    """
+    rows = con.execute(
+        """
+        SELECT DISTINCT d.doc_id, d.path FROM documents d
+        JOIN doc_ocr o ON o.doc_id = d.doc_id AND o.ocr_status = 'ok'
+        """
+    ).fetchall()
+    done = 0
+    for doc_id, path in rows:
+        p = Path(path)
+        if not p.exists():
+            continue
+        con.execute("DELETE FROM chunks WHERE doc_id = ?", [doc_id])
+        con.execute("DELETE FROM documents WHERE doc_id = ?", [doc_id])
+        try:
+            index_file(con, embedder, p)
+            done += 1
+        except Exception as exc:  # noqa: BLE001
+            print(f"[error] {p.name}: {exc}", file=sys.stderr)
+    if done:
+        dbmod.create_search_indexes(con)
+    return done
 
 
 def prune_missing(con) -> int:

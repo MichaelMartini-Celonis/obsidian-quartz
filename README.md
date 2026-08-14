@@ -151,6 +151,18 @@ so already-indexed papers are skipped, and DBLP/Unpaywall/arXiv *metadata→PDF*
 resolvers). Each is resumable via a JSON checkpoint and writes a CSV report. The
 registry of sources lives in `scripts/conference-sources.txt`.
 
+**Common lookup backends** (not venues — used whenever a listing has no direct PDF):
+
+| Backend | URL | How |
+|---|---|---|
+| [arXiv](https://arxiv.org/) | title → preprint PDF | `paperfetch.arxiv_pdf` / SIGMOD & ICDE matchers |
+| [Unpaywall](https://unpaywall.org/) | DOI → best OA PDF | `paperfetch.unpaywall_pdf` / CAIS & ICDE fallback |
+
+```bash
+scripts/.venv/bin/python scripts/paperfetch.py lookup --title "…"
+scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
+```
+
 | Command | Source |
 |---|---|
 | `scripts/.venv/bin/python scripts/cmu-db-group.py all` | CMU Database Group publications (`db.cs.cmu.edu/publications`) — direct self-hosted PDFs. |
@@ -158,36 +170,108 @@ registry of sources lives in `scripts/conference-sources.txt`.
 | `scripts/.venv/bin/python scripts/lunadong-reading-list.py all` | Luna Dong's classic DB reading list (citations only) — best-effort PDF resolution via the CMU page-numbered catalog (`p<page>-<name>.pdf`), DBLP, Unpaywall and arXiv. |
 | `scripts/.venv/bin/python scripts/tuberlin-dima.py all` | TU Berlin DIMA group publications (Volker Markl) — paginated TYPO3 list (~15 pages), direct self-hosted PDFs. |
 | `scripts/.venv/bin/python scripts/rxin-db-readings.py all` | Reynold Xin's `rxin/db-readings` — in-repo classic-DB PDFs **plus** a best-effort crawl of the linked "External Reading Lists" (Berkeley/Brown/Stanford/MIT/Wisconsin/CMU — a list of lists). |
-| `scripts/.venv/bin/python scripts/sigmod-arxiv.py all` / `cais-acm.py` / `tum-bpm.py` | SIGMOD (arXiv), ACM CAIS (Open-Access), TUM BPM chair (author-version PDFs). |
+| `scripts/.venv/bin/python scripts/sigmod-arxiv.py all` / `icde-arxiv.py` / `cais-acm.py` / `tum-bpm.py` | SIGMOD (arXiv), ICDE 2021–2026 (arXiv + Unpaywall DOI fallback), ACM CAIS (Unpaywall OA), TUM BPM chair (author-version PDFs). |
 
-> ### ⚠️ Unfinished harvesting & indexing (as of 2026-07-31)
+> ### ⚠️ Unfinished harvesting & indexing (as of 2026-08-13)
 >
-> **Completed this round** (fetched → imported → indexed): **TU Berlin DIMA**
-> (`tuberlin-dima.py`, 230 PDFs), **rxin/db-readings** (`rxin-db-readings.py`,
-> 112 PDFs incl. the external "list of lists") and the **dbdb.io mirror**
-> (`dbdb-systems.py`, 1,197 system pages + the tag taxonomy). Still outstanding:
+> **Completed this round** — index went **9,104 → 9,931 documents / 650,997 chunks**:
+> the loose `Inbox/` backlog (**33 files** filed into `Literature/`); the **ICDE
+> arXiv harvest** (`icde-arxiv.py`), whose *match* stage had never run against the
+> 2,245 gathered papers and now resolves **670 with an open copy** (**623** arXiv +
+> **47** Unpaywall-via-DOI, a **30%** hit rate), of which **645 downloaded**,
+> imported and indexed; the **PVLDB vols 14–18** sweep — all 1,962 open PDFs
+> fetched, but **1,904 were byte-identical to files already in `Literature/`** (they
+> had arrived via the earlier bulk URL list, so the stalled
+> `imports/pvldb-fetch.log` was a false gap), only **56** were new; and the
+> **transcripts** obtainable before the IP ban (**+22**).
+> Also completed a **topical gap-closing round on partial
+> orders vs. total order** (process mining ↔ databases): the garden already held
+> the process-mining side (Leemans/van Zelst/Lu's partial-order survey, Cortado's
+> interval-order variants, Mannila's episodes) but almost nothing on the
+> database side, so **66 documents** were pulled in across ordered/sequence data
+> models (Maier & Vance's *A Call to Order*, SEQ, SRQL, AQuery, SQL-TS, order
+> optimization), temporal/interval databases (Allen, temporal alignment, interval
+> joins, Timeline Index), stream order semantics (punctuation, out-of-order
+> processing, the Dataflow model, SASE+, Cayuga, CER survey), episode mining with
+> general partial orders (Tatti/Cule, Achar, Pei's closed partial orders) and its
+> total-order baseline (Agrawal & Srikant, SPADE, PrefixSpan),
+> distributed-systems classics (Lamport, Mattern) and transaction theory
+> (Papadimitriou, Bernstein et al.'s book, ANSI isolation levels, CRDTs). All are
+> imported, indexed and LLM-enriched. The **SRQL** tech-report scan had no
+> extractable text; it is now OCR'd locally (see `search/README.md` → *OCR for
+> scans*) and searchable — which also revealed that the file is **mis-titled**:
+> its pages are Sorin et al., *A Customized MVA Model for ILP Multiprocessors*
+> (UW-Madison TR #1369, 1998), not Ramakrishnan's SRQL. Casas-Garriga's
+> *Summarizing Sequential Data with Closed Partial Orders* (SDM 2005) has no open
+> copy; Pei et al.'s closed-partial-order papers cover the same ground.
+> Earlier rounds completed **TU Berlin DIMA**,
+> **rxin/db-readings**, the **dbdb.io mirror** and the **Luna Dong reading list**
+> pass (of 340 citations: 64 downloaded, 262 unresolved).
 >
-> - **Luna Dong reading list** (`scripts/lunadong-reading-list.py`) — of 340 parsed
->   citations, **18 PDFs were resolved, downloaded and imported/indexed**; **46**
->   have no open copy (`unresolved`), and **~273 are still pending resolution**.
->   Resolution is slow *by design* (arXiv asks for ≥3 s between calls) and the
->   background job kept getting killed on session teardown. Resume with
->   `scripts/.venv/bin/python scripts/lunadong-reading-list.py all` (or `resolve
->   --limit N` in bounded chunks), then re-import + re-index. Progress/leftovers
->   are in `Inbox/lunadong/_lunadong-report.csv`.
-> - **YouTube transcripts** (`scripts/import-youtube.py`) — the backlog holds
->   **927 videos**; **64 done, 2 skipped, ~861 pending**. The last run stopped
->   because **YouTube IP-blocked** the transcript API (auto-abort after 5
->   consecutive blocks). Resume later (ideally from a different IP / after a
->   cool-off) with `scripts/.venv/bin/python scripts/import-youtube.py run --loop`,
->   then `… -m search.cli index --roots transcripts`.
+> **A local OCR stage now exists** (`search/ocr.py`, PaddleOCR-VL on MLX — see
+> `search/README.md`), and running it exposed a defect class the index had been
+> carrying silently: **98 documents whose text layer is dense but not text** —
+> glyph names (`/BW/CT/DA`), control codes, or prose with every space dropped,
+> from PDFs whose fonts have no usable `ToUnicode` map. They passed every
+> length-based quality check while being unfindable by any query, and their
+> heuristic titles were derived *from* the garbage (hence entries like
+> `and hN - 23, 254768.pdf`). Detection is now a materialized column
+> (`text_garbled`); 2,736 pages were re-read locally in ~3.7 h. Retitling these is
+> the point of the enrichment pass that follows.
+>
+> The **SIGMOD arXiv harvester** was widened from 2024–2026 to **2015–2026**
+> (2,758 papers, up from 915) by handling the two DBLP proceedings layouts, and
+> given the same Unpaywall DOI fallback ICDE has. One lesson is already banked:
+> "open access" and "downloadable" are different properties — PACMMOD is gold OA,
+> but its PDFs live on `dl.acm.org`, which refuses every automated client
+> regardless of user agent. `paperfetch.unpaywall_locations` therefore returns
+> *all* OA locations ranked with the known bot-walled publisher hosts last, so a
+> repository mirror (`dspace.mit.edu`, `pure.uva.nl`, …) is tried first. Still outstanding:
+>
+> - **ICDE leftovers** — of the 2,245 gathered papers, **1,575 have no open copy**
+>   at all (IEEE-only; no arXiv preprint and no OA location via DOI) and **25
+>   matched but failed to download** (institutional repositories returning
+>   403/504/HTML — HKUST, Griffith, PolyU, SNS). See
+>   `Inbox/icde-arxiv/_icde-arxiv-report.csv`; re-running `match` only helps as new
+>   preprints appear.
+> - **YouTube transcripts** (`scripts/import-youtube.py`) — backlog **927 videos**;
+>   **129 done, 2 skipped, 796 pending**. This IP is **rate-limited by YouTube's
+>   `timedtext` endpoint**: each run gets ~15–20 videos, then `IpBlocked`. Confirmed
+>   that yt-dlp's caption URLs hit the *same* limit (HTTP 429), so a
+>   `youtube-transcript-api` → yt-dlp fallback (now implemented) does not defeat the
+>   block — only a **different IP or a proxy** does (see the library's
+>   *Working around IP bans*). What the block responds to is **elapsed time, not
+>   pacing**: bursts 25 min apart returned 0/3, but a day later the first attempt
+>   succeeded 5/5 and then ran 19 more before blocking again — the same ~20-video
+>   quota as every prior run. So the practical rate from this IP is **~20 videos per
+>   day**, which is ~40 days for the remaining backlog; the 19 fetched on 2026-08-14
+>   are on disk and still need `… -m search.cli index --roots transcripts`. Worth
+>   doing properly from another IP or a proxy rather than draining it a day at a
+>   time.
+> - ~~**Jure Leskovec (Stanford) publications**~~ — **done**. Of the 328 resolved
+>   URLs, **326 downloaded** (2 dead links on an old KDD-Cup site) and **308 were
+>   content-hash duplicates** of documents already in `Literature/`, so the round
+>   netted ~18 new papers. The overlap warning was right; the lesson for the next
+>   author-page round is that `fetch-papers.py` dedups only against `Inbox/`, so
+>   duplicates are paid for in bandwidth and caught later by
+>   `import-downloads.py`. Recording a `source_url` per document (design §4,
+>   tier 1) is what would let a future round skip them without downloading.
+> - **Metadata enrichment backlog** — **7,867 of 9,931** indexed documents are not
+>   LLM-enriched, so many carry heuristic junk titles (e.g. `product et al. - the
+>   1890 U.S. census`). `… -m search.cli enrich` is resumable and content-hash
+>   cached (~3.5 s/doc, so the full backlog is a multi-hour run); then
+>   `search/retitle.py` to fix filenames and `… -m search.cli graph --build`.
+> - **Luna Dong leftovers** — the **262 unresolved** citations have no freely
+>   downloadable PDF via CMU catalog / DBLP / Unpaywall / arXiv (mostly older
+>   ACM/VLDB paywalled classics). Report: `Inbox/lunadong/_lunadong-report.csv`.
+>   Re-running `resolve` only helps if new OA copies appear.
 > - **rxin/db-readings external lists** — **32 citations** from the linked schools'
 >   lists have **no open copy** (`unresolved`) and 2 lists were unreachable; these
 >   are best-effort leftovers (see `Inbox/db-readings/_db-readings-report.csv`).
 >
 > Everything already downloaded into `Literature/`, `Transcripts/` and
 > `db_systems/` **has been imported and indexed** into `search/index.duckdb`; the
-> items above are the only outstanding *fetch* work.
+> items above are the outstanding *fetch* (and enrichment) work.
 
 ### Companion data repo (`~/docs-data`, Git LFS)
 
