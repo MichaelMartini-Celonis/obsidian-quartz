@@ -34,6 +34,12 @@ from queue import Empty, Queue
 
 from . import config
 
+# How much better a fresh reading has to be before it displaces an existing text
+# layer. Above 1 so that noise never flips the choice, low enough that a layer
+# with any real damage loses: the two are measured on the same scale, and a
+# healthy born-digital PDF beats its own OCR comfortably.
+QUALITY_MARGIN = 1.15
+
 # Every backend here runs locally. `mode` maps to the prompt each model expects:
 # "text" for reading-order text, "layout" for text plus box tokens.
 BACKENDS: dict[str, dict] = {
@@ -451,24 +457,30 @@ def prefer_ocr(con, doc_id: str, ex) -> bool:
 
     Called from `index_file`. Only a document that the text layer failed on is
     overridden, so a born-digital PDF is never displaced by a model's reading of
-    a picture of itself. "Failed" means thin *or* unreadable: a dense layer of
-    glyph names passes the density test but is worse than nothing in the index.
+    a picture of itself.
+
+    "Failed" is decided by *comparing the two texts*, not by testing the existing
+    one against a threshold. Thresholds belong to candidate selection, where the
+    question is absolute; here the question is relative, and a threshold answers
+    it badly — a document near the bar keeps its unusable layer whenever the
+    flagging stage and this one sample it differently, silently wasting the OCR
+    that was already paid for. Volume still settles the *thin* case, where there
+    is no readable text on either side to compare.
     """
     from . import metadata as metamod
 
-    own_chars = sum(len(t) for _, t in ex.pages)
-    pages = max(ex.n_pages, 1)
-    garbled, _ = metamod.is_garbled("\n".join(t for _, t in ex.pages[:12]))
-    if own_chars / pages >= config.OCR_MIN_CHARS_PER_PAGE and not garbled:
-        return False
     ocr = cached_pages(con, doc_id)
     if not ocr:
         return False
-    # "More characters wins" is the right tie-break between a thin text layer and
-    # a reading of the same page, but not against a garbled one: that layer can
-    # be arbitrarily long and none of it is text, so volume proves nothing.
-    if not garbled and sum(len(t) for _, t in ocr) <= own_chars:
-        return False
+    own_chars = sum(len(t) for _, t in ex.pages)
+    if own_chars / max(ex.n_pages, 1) < config.OCR_MIN_CHARS_PER_PAGE:
+        if sum(len(t) for _, t in ocr) <= own_chars:
+            return False
+    else:
+        own = metamod.readability(metamod.spread_sample([t for _, t in ex.pages]))
+        fresh = metamod.readability(metamod.spread_sample([t for _, t in ocr]))
+        if fresh is None or (own is not None and fresh <= own * QUALITY_MARGIN):
+            return False
     ex.pages = ocr
     ex.n_pages = max(ex.n_pages, max(p for p, _ in ocr))
     if not ex.abstract:

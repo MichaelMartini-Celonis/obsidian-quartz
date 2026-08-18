@@ -172,9 +172,16 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 | `scripts/.venv/bin/python scripts/rxin-db-readings.py all` | Reynold Xin's `rxin/db-readings` — in-repo classic-DB PDFs **plus** a best-effort crawl of the linked "External Reading Lists" (Berkeley/Brown/Stanford/MIT/Wisconsin/CMU — a list of lists). |
 | `scripts/.venv/bin/python scripts/sigmod-arxiv.py all` / `icde-arxiv.py` / `cais-acm.py` / `tum-bpm.py` | SIGMOD (arXiv), ICDE 2021–2026 (arXiv + Unpaywall DOI fallback), ACM CAIS (Unpaywall OA), TUM BPM chair (author-version PDFs). |
 
-> ### ⚠️ Unfinished harvesting & indexing (as of 2026-08-13)
+> ### ⚠️ Unfinished harvesting & indexing (as of 2026-08-18)
 >
-> **Completed this round** — index went **9,104 → 9,931 documents / 650,997 chunks**:
+> **Latest round** — the widened **SIGMOD 2015–2026** harvest ran to completion:
+> of its 2,758 papers **1,398 have an open copy** and **1,167 are in hand**
+> (the 231 that matched but would not download are almost all `dl.acm.org`
+> returning 403). Those, plus the transcripts fetched between IP blocks, took the
+> index to **11,090 documents / 760,994 chunks**, and the container-metadata stage
+> now covers the whole corpus (**6,851 abstracts**, 61.8%).
+>
+> **Completed the round before** — index went **9,104 → 9,931 documents / 650,997 chunks**:
 > the loose `Inbox/` backlog (**33 files** filed into `Literature/`); the **ICDE
 > arXiv harvest** (`icde-arxiv.py`), whose *match* stage had never run against the
 > 2,245 gathered papers and now resolves **670 with an open copy** (**623** arXiv +
@@ -184,6 +191,14 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 > had arrived via the earlier bulk URL list, so the stalled
 > `imports/pvldb-fetch.log` was a false gap), only **56** were new; and the
 > **transcripts** obtainable before the IP ban (**+22**).
+> Also **re-imported the two competitor doc collections** (`import-docs.py`):
+> Palantir Foundry went **17 → 795 pages** (121 KB → 3.3 MB) once all three of
+> its 5,000-URL-capped sitemaps are read rather than only `sitemap.xml`, which is
+> exhausted by `/docs/foundry/api/` plus the `/docs/jp/` mirror and so hid the
+> Insight, Notepad, Vertex and Quiver card sections entirely; and RelationalAI
+> gained a second file (**117** template/guide pages, 2.1 MB) because its
+> `llms-full.txt` emits each one as an unrendered `<TemplateDetail …/>` tag. Both
+> indexed (10,140 documents / 686,581 chunks). See `SOURCES.md` §3.
 > Also completed a **topical gap-closing round on partial
 > orders vs. total order** (process mining ↔ databases): the garden already held
 > the process-mining side (Leemans/van Zelst/Lu's partial-order survey, Cortado's
@@ -219,6 +234,46 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 > (`text_garbled`); 2,736 pages were re-read locally in ~3.7 h. Retitling these is
 > the point of the enrichment pass that follows.
 >
+> Verifying that this text actually reached the index turned up **two bugs and a
+> third defect class**, all now fixed. The bugs came as a pair: the metadata stage
+> judged a document by its **first 12 chunks** while the indexer judged the same
+> document by its **first 12 pages**, so a file could be flagged as garbled in one
+> place and silently declined in the other — which is what happened to Whitehead's
+> *Science and the Modern World*, whose opening scored 0.031 against a 0.03 bar and
+> so kept its unreadable layer in the index despite 193 OCR'd pages sitting in the
+> cache. Both stages now read the same evenly-spread sample (`metadata.spread_sample`).
+> The defect class the fix exposed is **whitespace loss**: an extractor that
+> recovers every glyph but no word boundaries, so a page arrives as
+> `Thesearethewordsusedbyanoutstandingcritic`. It defeats both existing tests —
+> enough short words survive to clear the function-word bar, and every character is
+> perfectly mappable — yet no phrase query can ever match it. It is measurable as
+> the share of letters stranded in runs of ≥20 characters (`metadata.glued_ratio`):
+> healthy documents in this corpus sit at **0.003** (p90) and **0.10** (p99), the
+> damaged ones at **0.26–0.92**, with no overlap and no front-matter false
+> positives (the glue is a whole-document property). At a 0.25 bar this caught
+> **28 further documents / 2,276 pages** (6.56 M characters, 159 min), among them
+> Ullman's *Principles of Database and Knowledge-base Systems* (654 pp), Beer's
+> *Brain of the Firm* and Naumann's *Informationsintegration* — all previously
+> indexed as unsearchable mush.
+>
+> Fixing the substitution properly took one more step, and it is the more useful
+> lesson: sharing a sampling function between the flagging stage and the indexer
+> still left a document stranded on the threshold, because the flag is computed
+> over *chunks* while the indexer works in *pages*. Selection needs a threshold
+> ("is this bad enough to OCR?"); **substitution needs a comparison** ("which of
+> these two texts is better?"). `prefer_ocr` now scores both candidates on
+> `metadata.readability` — function-word share discounted by glue — and takes the
+> fresh reading only when it wins by 15%. Cumulatively OCR has recovered
+> **146 documents / 5,804 pages / 15.7 M characters** in ~7.3 h of local inference
+> with zero errors, and **no PDF in the corpus is flagged garbled any more**.
+> Whitehead went from unsearchable to 653 chunks of readable prose, Ullman's
+> textbook to 1,807. The last two stragglers were the flag itself being asked the
+> wrong question: a dbdb fact sheet and a Malloy post that is mostly a data blob
+> scored as unreadable because they *are* mostly not prose. `text_garbled` means
+> "re-read the pages", which only a PDF can do, so it is now set for PDFs only —
+> the score is still computed everywhere, but markdown cannot be re-read and a low
+> score there is a fact about the content, not a defect.
+>
 > The **SIGMOD arXiv harvester** was widened from 2024–2026 to **2015–2026**
 > (2,758 papers, up from 915) by handling the two DBLP proceedings layouts, and
 > given the same Unpaywall DOI fallback ICDE has. One lesson is already banked:
@@ -228,6 +283,31 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 > *all* OA locations ranked with the known bot-walled publisher hosts last, so a
 > repository mirror (`dspace.mit.edu`, `pure.uva.nl`, …) is tried first. Still outstanding:
 >
+> The SIGMOD round is now **fetched and imported**, and its most useful result is
+> not the papers: of the **1,158 open copies** located, **1,001 were already in the
+> corpus**, and of the 157 the harvester could not recognise only **4** were new.
+> A 2,758-paper sweep across twelve years netted roughly **54 documents**. The rest
+> was 2.5 GB of re-downloading, because `sigmod-arxiv.py` and `icde-arxiv.py` were
+> the only harvesters that never consulted the index — the seven others build a
+> `paperfetch.IndexDedup` and skip what is held. Both now do too, and they do it
+> *better* than the siblings: those download first and delete afterwards, whereas a
+> DBLP title is known before any transfer, so a held paper now costs nothing at all.
+> Note what the residual 153 misses were caused by: the index still holds
+> **heuristic junk titles** for those documents, so title matching could not see
+> them. Enrichment is what repairs that, which makes the two tasks below
+> sequential rather than independent — dedup gets sharper once titles are clean.
+>
+> - **SIGMOD leftovers** — of the 2,758 papers **1,360 have no open copy** at all
+>   and **231 matched but would not download**. Probing them settled what kind of
+>   failure they are: **94** are `dl.acm.org` 403s (gold-OA PACMMOD papers with no
+>   repository mirror), and most of the rest are repositories that answer a PDF
+>   request with **HTTP 200 and a bot challenge** — a JS proof-of-work page
+>   (hal.science, madoc.bib.uni-mannheim.de) or a CAPTCHA (repository.hkust.edu.hk).
+>   These need a browser, not a smarter hop, so `paperfetch.download_pdf` now names
+>   them `bot challenge (JS/CAPTCHA)` instead of the misleading `not a PDF (text/html)`.
+>   Coverage is strongly generational — 2023 resolves at **87%** (PACMMOD is born OA)
+>   against **13%** for 2015 — so re-running `match` mainly helps as older work is
+>   deposited.
 > - **ICDE leftovers** — of the 2,245 gathered papers, **1,575 have no open copy**
 >   at all (IEEE-only; no arXiv preprint and no OA location via DOI) and **25
 >   matched but failed to download** (institutional repositories returning
@@ -235,19 +315,33 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 >   `Inbox/icde-arxiv/_icde-arxiv-report.csv`; re-running `match` only helps as new
 >   preprints appear.
 > - **YouTube transcripts** (`scripts/import-youtube.py`) — backlog **927 videos**;
->   **129 done, 2 skipped, 796 pending**. This IP is **rate-limited by YouTube's
+>   **185 done, 3 skipped, 739 pending**. This IP is **rate-limited by YouTube's
 >   `timedtext` endpoint**: each run gets ~15–20 videos, then `IpBlocked`. Confirmed
 >   that yt-dlp's caption URLs hit the *same* limit (HTTP 429), so a
 >   `youtube-transcript-api` → yt-dlp fallback (now implemented) does not defeat the
->   block — only a **different IP or a proxy** does (see the library's
->   *Working around IP bans*). What the block responds to is **elapsed time, not
->   pacing**: bursts 25 min apart returned 0/3, but a day later the first attempt
->   succeeded 5/5 and then ran 19 more before blocking again — the same ~20-video
->   quota as every prior run. So the practical rate from this IP is **~20 videos per
->   day**, which is ~40 days for the remaining backlog; the 19 fetched on 2026-08-14
->   are on disk and still need `… -m search.cli index --roots transcripts`. Worth
->   doing properly from another IP or a proxy rather than draining it a day at a
->   time.
+>   block. What the block responds to is **elapsed time, not pacing**: bursts 25 min
+>   apart returned 0/3, but a day later the first attempt succeeded 5/5 and then ran
+>   19 more before blocking again — the same ~20-video quota as every prior run, and
+>   a further attempt 6 h later got nothing. So the practical rate from this IP is
+>   **~20 videos per day**, i.e. ~38 days for the remaining backlog. Three further
+>   days confirmed the quota exactly: **+19, +19, +19** on consecutive days, each run
+>   ending in `IpBlocked` with no partial credit for slower pacing. At that rate the
+>   remaining 739 videos are **~37 days** of daily runs. All fetched transcripts are
+>   indexed.
+>
+>   Since the ban is tied to the egress IP, the harvester now takes a **proxy** —
+>   the only remedy the library documents. Set either pair and both the transcript
+>   API and the yt-dlp fallback use it:
+>
+>   ```bash
+>   export YOUTUBE_PROXY_HTTP=http://user:pass@host:port      # any http/https/SOCKS proxy
+>   export WEBSHARE_PROXY_USERNAME=… WEBSHARE_PROXY_PASSWORD=…  # rotating residential
+>   scripts/.venv/bin/python scripts/import-youtube.py run --loop
+>   ```
+>
+>   With nothing set the direct path is unchanged. A datacenter/VPN exit is not
+>   worth trying — YouTube blocks those ranges pre-emptively, which is exactly what
+>   the library's error message warns about; residential rotation is what works.
 > - ~~**Jure Leskovec (Stanford) publications**~~ — **done**. Of the 328 resolved
 >   URLs, **326 downloaded** (2 dead links on an old KDD-Cup site) and **308 were
 >   content-hash duplicates** of documents already in `Literature/`, so the round
@@ -256,11 +350,29 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 >   duplicates are paid for in bandwidth and caught later by
 >   `import-downloads.py`. Recording a `source_url` per document (design §4,
 >   tier 1) is what would let a future round skip them without downloading.
-> - **Metadata enrichment backlog** — **7,867 of 9,931** indexed documents are not
+>   (`fetch-papers.py` still has this gap; the SIGMOD/ICDE matchers no longer do.)
+> - **Metadata enrichment backlog** — **8,336 of 11,142** indexed documents are not
 >   LLM-enriched, so many carry heuristic junk titles (e.g. `product et al. - the
->   1890 U.S. census`). `… -m search.cli enrich` is resumable and content-hash
->   cached (~3.5 s/doc, so the full backlog is a multi-hour run); then
->   `search/retitle.py` to fix filenames and `… -m search.cli graph --build`.
+>   1890 U.S. census`) — including the 146 documents OCR was just paid for, whose
+>   old titles were derived from the garbage the OCR replaced. `… -m search.cli
+>   enrich` is resumable and content-hash cached (~3.2 s/doc, so the full backlog is
+>   a ~7 h run); then `search/retitle.py` to fix filenames and `… -m search.cli
+>   graph --build`.
+>
+>   Two things had to be fixed before this could run unattended. The model was
+>   given **600 tokens** for its JSON reply and emitted it pretty-printed, so any
+>   paper with a long author list was **truncated mid-string and discarded whole** —
+>   two of the first three documents failed that way. The reply is now requested on
+>   a single line with at most 15 authors in 1,024 tokens, and a truncated object is
+>   **repaired rather than thrown away**: `llm._close_truncated` keeps the members
+>   that completed (the cut almost always lands in the trailing keyword list, long
+>   after the title and authors arrived). A member cut mid-write is dropped whole
+>   rather than salvaged — half an author list reads as authoritative and is not.
+>   Second, a 7-hour job does not survive this machine's reaper, which ended three
+>   long runs today alone. Since every document is cached as it completes,
+>   **`scripts/enrich-loop.sh`** simply restarts the pass until the backlog is empty,
+>   and stops if a pass makes no progress (a real failure, e.g. the gateway being
+>   unreachable, rather than a killed process).
 > - **Luna Dong leftovers** — the **262 unresolved** citations have no freely
 >   downloadable PDF via CMU catalog / DBLP / Unpaywall / arXiv (mostly older
 >   ACM/VLDB paywalled classics). Report: `Inbox/lunadong/_lunadong-report.csv`.

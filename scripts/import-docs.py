@@ -94,6 +94,9 @@ class DocSource:
     drop_re: str = ""               # never fetch URLs matching this
     cap: int = 300
     source_url: str = ""            # human-facing landing page for the header
+    # second collection for the same company (the default file name is derived
+    # from ``company``, so a company with two sources needs one of them named)
+    filename: str = ""
 
 
 SOURCES: list[DocSource] = [
@@ -149,6 +152,22 @@ SOURCES: list[DocSource] = [
         source_url="https://docs.relational.ai/",
         license="\u00a9 RelationalAI",
     ),
+    # The llms-full export reduces every template and guide to an unrendered
+    # Astro component tag (``<TemplateDetail template="defect_root_cause" />``),
+    # so the modelling content — which reasoning types a use case combines, how
+    # concepts and rules are declared — is missing from the export entirely. The
+    # server-rendered HTML has it, and "<url>.md" is only the bare title, so
+    # these pages are scraped rather than taken as markdown.
+    DocSource(
+        key="relationalai-templates", company="RelationalAI", method="sitemap",
+        title="RelationalAI \u2014 Solution Templates & Build Guides",
+        filename="RelationalAI Templates & Guides.md",
+        sitemaps=("https://docs.relational.ai/sitemap-0.xml",),
+        keep_re=r"^https://docs\.relational\.ai/build/(templates|guides|tutorials|agents)/.+",
+        prefer=r"/build/templates/",
+        cap=200, source_url="https://docs.relational.ai/build/templates/",
+        license="\u00a9 RelationalAI",
+    ),
     DocSource(
         key="clickhouse", company="ClickHouse", method="sitemap",
         title="ClickHouse SQL Reference",
@@ -177,11 +196,23 @@ SOURCES: list[DocSource] = [
     DocSource(
         # Palantir docs are a client-rendered SPA; the page markdown is embedded in
         # the __NEXT_DATA__ JSON (props.pageProps.markdown), so we read it there.
+        #
+        # Discovery needs all three sitemaps: each caps at 5,000 alphabetically
+        # ordered URLs, and the first is exhausted by /docs/foundry/api/ plus the
+        # /docs/jp/ locale mirror — so sitemap.xml alone stops at "j" and hides
+        # every section after it (insight, notepad, quiver cards, vertex, …).
         key="palantir-ontology", company="Palantir Foundry", method="next_data",
-        title="Palantir Foundry \u2014 Ontology, Actions, Functions, Quiver & Machinery Documentation",
-        sitemaps=("https://www.palantir.com/docs/sitemap.xml",),
-        keep_re=r"/docs/foundry/(ontology|action-types|functions|quiver|machinery)/",
-        cap=300, source_url="https://www.palantir.com/docs/foundry/ontology/overview/",
+        title="Palantir Foundry \u2014 Ontology, Analysis (Quiver / Insight / Vertex), "
+              "Actions, Functions, Automation & Machinery Documentation",
+        sitemaps=("https://palantir.com/docs/sitemap.xml",
+                  "https://palantir.com/docs/sitemap-1.xml",
+                  "https://palantir.com/docs/sitemap-2.xml"),
+        keep_re=r"/docs/foundry/(ontology|ontologies|ontology-manager|object-link-types|"
+                r"object-views|object-explorer|object-monitors|interfaces|action-types|"
+                r"functions|foundry-rules|quiver|time-series|insight|vertex|notepad|"
+                r"machinery|process-mining|logic|automate|ai-fde)/",
+        prefer=r"/docs/foundry/[^/]+/(overview|core-concepts|concepts|getting-started)/",
+        cap=900, source_url="https://www.palantir.com/docs/foundry/ontology/overview/",
         license="\u00a9 Palantir Technologies Inc.",
     ),
     # KumoAI's relational foundation model docs now live on the NVIDIA docs
@@ -743,7 +774,8 @@ def import_butter_cms(session, src: DocSource) -> tuple[int, str]:
 
 
 def import_source(session, src: DocSource, delay, dry_run, force) -> dict:
-    dest = LITERATURE / src.collection / src.company / f"{src.company} Documentation.md"
+    dest = (LITERATURE / src.collection / src.company /
+            (src.filename or f"{src.company} Documentation.md"))
     if dest.exists() and not force:
         print(f"[{src.key}] exists, skipping (use --force) -> "
               f"{dest.relative_to(DOCS_ROOT)}")
@@ -795,8 +827,7 @@ def import_source(session, src: DocSource, delay, dry_run, force) -> dict:
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(_header(src, pages_note) + body, encoding="utf-8")
     kb = dest.stat().st_size / 1024
-    print(f"[{src.key}] wrote {src.company} Documentation.md "
-          f"({n} unit(s), {kb:.0f} KB)")
+    print(f"[{src.key}] wrote {dest.name} ({n} unit(s), {kb:.0f} KB)")
     return {"kept": n, "skipped": 0}
 
 

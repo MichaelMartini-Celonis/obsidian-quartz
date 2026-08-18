@@ -131,13 +131,15 @@ scripts/.venv/bin/python -m search.cli ocr --status                # coverage + 
 ```
 
 `--only-empty` covers more than empty PDFs, because "has text" and "has *readable* text" are
-different questions. 98 documents in this corpus extract thousands of characters per page of glyph
+different questions. ~130 documents in this corpus extract thousands of characters per page of glyph
 names (`/BW/CT/DA`), control codes, or words with every space dropped — a font without a usable
 `ToUnicode` map. They pass every length-based check while being unsearchable, and their heuristic
-titles are derived from the garbage (`and hN - 23, 254768.pdf`). The `metadata` stage scores each
-text layer for how language-like it is (`text_readable_ratio`, function-word share across en/de/nl/fr)
-and flags the failures as `text_garbled`; see `DESIGN-ocr-metadata.md` §3.1 for why one threshold is
-not enough to separate them from Slovenian prose and slide decks.
+titles are derived from the garbage (`and hN - 23, 254768.pdf`). The `metadata` stage flags them as
+`text_garbled` on three independent measures: how language-like the layer is
+(`text_readable_ratio`, function-word share across en/de/nl/fr), the share of characters that cannot
+be text at all, and the share of letters stranded in 20+ character runs (`glued_ratio`, which is what
+catches lost word boundaries — the case that defeats the other two). See `DESIGN-ocr-metadata.md`
+§3.1–3.2 for why no single threshold separates these from Slovenian prose, slide decks and monographs.
 
 The model stack lives in a **separate venv** so this one stays free of a GPU runtime:
 

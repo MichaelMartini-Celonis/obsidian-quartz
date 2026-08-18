@@ -29,6 +29,7 @@ SYSTEM = (
     "unknown or not a paper), year (integer or null), venue (string or null: the "
     "journal/conference/publisher), keywords (array of 3-8 lowercase topical "
     "keyword phrases describing the subject). "
+    "List at most 15 authors. Emit the JSON on a single line without indentation. "
     "Never invent authors. If the text is not a real document (ticket, cover page, "
     "boilerplate), set authors to [] and give a concise descriptive title. "
     "Reply with the JSON object only, no prose."
@@ -128,7 +129,7 @@ def enrich(con, only_review: bool = False, limit=None, redo: bool = False) -> di
             stats["failed"] += 1
             continue
         try:
-            meta = client.json(SYSTEM, f"Opening text:\n\n{text}", max_tokens=600)
+            meta = client.json(SYSTEM, f"Opening text:\n\n{text}", max_tokens=1024)
         except Exception as exc:  # noqa: BLE001
             print(f"[fail]  {doc_id[:12]}  {exc}")
             stats["failed"] += 1

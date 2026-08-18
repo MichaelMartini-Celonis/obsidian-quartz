@@ -163,6 +163,16 @@ def pdf_from_landing_page(body: bytes, base_url: str) -> str | None:
     return None
 
 
+# A repository that answers a PDF request with HTTP 200 and a JS proof-of-work
+# page or a CAPTCHA is not misconfigured and is not serving a landing page — it
+# has decided this client is a robot. Saying so distinguishes "needs a smarter
+# hop" from "needs a browser", which is the difference between a bug worth fixing
+# and a wall worth recording.
+_CHALLENGE_RE = re.compile(
+    r"not a bot|captcha challenge|enable javascript and cookies"
+    r"|checking your browser|unusual traffic from your client", re.I)
+
+
 def download_pdf(sess: requests.Session, url: str, dest: Path,
                  timeout: int = 90, follow_landing: bool = True) -> tuple[bool, str]:
     """Fetch ``url`` to ``dest`` iff the body is a real PDF. Idempotent.
@@ -188,6 +198,8 @@ def download_pdf(sess: requests.Session, url: str, dest: Path,
                 ok, msg = download_pdf(sess, hop, dest, timeout,
                                        follow_landing=False)
                 return ok, (f"via landing page, {msg}" if ok else f"landing hop: {msg}")
+        if _CHALLENGE_RE.search(data[:20_000].decode("utf-8", "ignore")):
+            return False, "bot challenge (JS/CAPTCHA)"
         return False, f"not a PDF ({ctype or 'unknown'})"
     if len(data) < 2000:
         return False, f"too small ({len(data)} bytes)"

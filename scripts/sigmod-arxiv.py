@@ -461,12 +461,21 @@ def safe_name(rec: dict) -> str:
     return f"{stem} [{tag}].pdf"
 
 
-def download(records: list[dict]) -> None:
+def download(records: list[dict], dedup: bool = True) -> None:
     found = [r for r in records if r.get("status") in ("found", "downloaded")]
     print(f"downloading {len(found)} matched PDFs...")
     session = pf.session()
-    ok = fail = skip = 0
+    # DBLP gives us the title before we spend anything on the paper, so a copy the
+    # corpus already holds can be dropped without a request. Sibling harvesters
+    # download first and delete afterwards; here that would be 2.5 GB of transfer
+    # to re-acquire papers whose only destination is the importer's duplicate bin.
+    idx = pf.IndexDedup() if dedup else None
+    ok = fail = skip = in_index = 0
     for i, r in enumerate(found, 1):
+        if idx and idx.contains(r["title"]):
+            r["status"] = "in_index"
+            in_index += 1
+            continue
         dest_dir = OUT_DIR / str(r["year"]) / r["track"]
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest = dest_dir / safe_name(r)
@@ -504,9 +513,14 @@ def download(records: list[dict]) -> None:
             print(f"[{i}/{len(found)}] -- {r['title'][:60]}: {len(urls)} url(s) failed")
         if i % 20 == 0:
             save_ckpt(records)
-        time.sleep(DL_SLEEP)
+        # Pace the remote hosts, not the local disk. A run interrupted near the
+        # end re-walks every record it already has, and pausing for those turns a
+        # resume into a 20-minute wait for a handful of remaining files.
+        if info != "exists":
+            time.sleep(DL_SLEEP)
     save_ckpt(records)
-    print(f"\n=== downloaded {ok}, skipped(existing) {skip}, failed {fail} ===")
+    print(f"\n=== downloaded {ok}, skipped(existing) {skip}, "
+          f"already indexed {in_index}, failed {fail} ===")
 
 
 # ---------------------------------------------------------------------------
@@ -539,11 +553,13 @@ def print_summary(records: list[dict]) -> None:
     for (y, s), n in sorted(by_year.items(), key=lambda kv: (str(kv[0][0]), kv[0][1])):
         print(f"  {y}  {s:12s} {n}")
     tot = len(records)
-    found = sum(1 for r in records if r["status"] in ("found", "downloaded"))
+    OPEN = ("found", "downloaded", "in_index")
+    found = sum(1 for r in records if r["status"] in OPEN)
     dl = sum(1 for r in records if r["status"] == "downloaded")
-    by_src = Counter(r.get("source", "") for r in records
-                     if r["status"] in ("found", "downloaded"))
-    print(f"  total papers: {tot} | open copies: {found} {dict(by_src)} | downloaded: {dl}")
+    held = sum(1 for r in records if r["status"] == "in_index")
+    by_src = Counter(r.get("source", "") for r in records if r["status"] in OPEN)
+    print(f"  total papers: {tot} | open copies: {found} {dict(by_src)} "
+          f"| downloaded: {dl} | already held: {held}")
 
 
 # ---------------------------------------------------------------------------

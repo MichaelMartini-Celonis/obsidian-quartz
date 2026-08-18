@@ -60,6 +60,16 @@ Cross-cutting resolvers used by the paper harvesters whenever a venue listing
 gives only *metadata* (title / authors / DOI) and no direct PDF. Implemented in
 `scripts/paperfetch.py`; registered in `scripts/conference-sources.txt`.
 
+Before spending anything on a paper, a harvester should ask whether the corpus
+already holds it: `paperfetch.IndexDedup` loads every indexed title once and
+matches on normalised equality, then a 0.93 fuzzy ratio. Where the venue listing
+supplies a title up front (DBLP-driven sweeps), the check runs *before* the
+download, so a held paper costs nothing; where the title only becomes known by
+reading the file, the harvester downloads, checks, then deletes. Skipping this is
+expensive and quiet — the SIGMOD 2015–2026 round moved 2.5 GB to add ~54
+documents. Its effectiveness depends on the index having real titles, which is
+what the LLM enrichment pass supplies.
+
 
 | Source | URL | Lookup | Used by | Status |
 | ------ | --- | ------ | ------- | ------ |
@@ -93,7 +103,7 @@ plus a curated award-paper set:
 | Venue                        | Open access?                                    | Plan                                | Status |
 | ---------------------------- | ----------------------------------------------- | ----------------------------------- | ------ |
 | **PVLDB** (`vldb.org/pvldb`) | ✅ fully open (`volNN/p*.pdf`)                   | Harvest vols 14–18 (2021–2025)      | 🔄     |
-| **SIGMOD**                   | ⛔ ACM DL paywall                                | Author-page + award coverage; `sigmod-arxiv.py` covers **2015–2026** (research + industry/demo/tutorial) → arXiv, Unpaywall DOI fallback. Two DBLP layouts: one `conf/sigmod/sigmodYYYY` volume per year to 2022, then PACMMOD research volumes + a `sigmodYYYYc` companion | 🧭     |
+| **SIGMOD**                   | ⛔ ACM DL paywall                                | Author-page + award coverage; `sigmod-arxiv.py` covers **2015–2026** (research + industry/demo/tutorial) → arXiv, Unpaywall DOI fallback. Two DBLP layouts: one `conf/sigmod/sigmodYYYY` volume per year to 2022, then PACMMOD research volumes + a `sigmodYYYYc` companion. **Complete and imported:** 2,758 papers → 1,158 open copies, of which **1,001 were already held** by the corpus and only **~54 were new**. Coverage is generational: 87% for 2023 (PACMMOD born OA) vs. 13% for 2015 | ✅     |
 | **ICDE**                     | ⛔ IEEE Xplore paywall                           | DBLP (2021–2025) + 2026 HTML → arXiv, Unpaywall DOI fallback (`icde-arxiv.py`) | 🧭     |
 | **BPM**                      | ⛔ Springer LNCS/LNBIP (workshops open via CEUR) | Extend author-page coverage; awards | 🧭     |
 | **ICPM**                     | ⛔ IEEE (workshops open via CEUR)                | Extend author-page coverage; awards | 🧭     |
@@ -120,10 +130,24 @@ Consolidated one-file-per-source under `Literature/Tool & Competitor Documentati
 via `scripts/import-docs.py` (SQL dialects & data-platform foundations). ✅
 
 PostgreSQL · GoogleSQL (ZetaSQL) · Apache DataFusion · CedarDB · DuckDB ·
-RelationalAI · ClickHouse · Gel · Malloy · Palantir Foundry (Ontology) · Bauplan ·
+RelationalAI (docs + templates/guides) · ClickHouse · Gel · Malloy ·
+Palantir Foundry (Ontology, Quiver/Insight/Vertex, Automate, Machinery) · Bauplan ·
 Snowflake · Databricks · Apache Flink · Oracle (SQL) · SAP HANA (SQL).
 
 > SAP LeanIX docs are a JS SPA and could not be fetched — ⛔.
+
+> **Two discovery traps, both since fixed (2026-08-14).** Palantir publishes
+> `sitemap.xml`, `sitemap-1.xml` and `sitemap-2.xml`, each capped at 5,000
+> alphabetically ordered URLs; the first is consumed by `/docs/foundry/api/` and
+> the `/docs/jp/` locale mirror, so reading it alone stops at "j" and silently
+> hides every later section (Insight, Notepad, Quiver's card pages, Vertex).
+> Coverage went 17 → 795 pages once all three are read. And RelationalAI's
+> `llms-full.txt` renders each template/guide as an unevaluated Astro tag
+> (`<TemplateDetail template="defect_root_cause" />`), so 117 pages of modelling
+> content existed only in the server-rendered HTML; they are now a second
+> collection file (`RelationalAI Templates & Guides.md`). Lesson: an
+> `llms-full`/sitemap export can be *present and complete-looking* while omitting
+> whole sections — spot-check a known page before trusting absence of a term.
 
 ---
 
@@ -153,6 +177,9 @@ Anchor Modeling · CedarDB · Kùzu · TypeDB · **Andy Pavlo (CMU)** 🔄.
 Fetched via `youtube-transcript-api` + `yt-dlp` into `Transcripts/<Channel>/`
 (metadata header + timestamped body), indexed alongside papers. Source list:
 `scripts/youtube-sources.txt`; resumable backlog: `imports/youtube-backlog.json`. ✅/🔄
+**185 of 927 fetched**; the rest is gated by a hard **~20 transcripts/day** cap on
+this egress IP (see `README.md` → *Unfinished harvesting*, and the `YOUTUBE_PROXY_HTTP`
+/ Webshare options the harvester accepts).
 
 Channels & series harvested include: CMU Database Group · SIGMOD · DSDSD (Dutch
 Seminar on Data Systems Design) · Dan Suciu · Ryan O'Donnell · Strange Loop ·
@@ -204,4 +231,9 @@ Tooling registry lives in `scripts/` (see `README.md` → *Tooling*):
 - **ACM DL** (SIGMOD, KDD), **IEEE** (ICPM), **Springer LNCS** (BPM, CAiSE, ER,
 Petri Nets) — paywalled; rely on author copies / arXiv / CEUR where they exist.
 - **SAP LeanIX** docs — JS single-page app.
+- **Bot-challenged repositories** — some institutional repositories hold a genuinely
+  open PDF behind a JS proof-of-work page or CAPTCHA, answering `HTTP 200` with an
+  HTML challenge: `hal.science`, `madoc.bib.uni-mannheim.de`, `repository.hkust.edu.hk`.
+  `paperfetch.download_pdf` reports these as `bot challenge (JS/CAPTCHA)`; they need
+  a real browser, so treat them as manual drops.
 

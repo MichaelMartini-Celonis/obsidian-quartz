@@ -247,6 +247,48 @@ German, slide decks and reference guides stay out; all three failure modes above
 text layer and a reading of the same page is wrong here, because a garbled layer can be arbitrarily
 long while containing nothing. Volume only decides the *thin* case.
 
+### 3.2 Lost word boundaries need their own measure
+
+Row three of the table above — `themythicalman-monthEssayson` — survives the rule in §3.1, and it
+took verifying the promoted text to notice. Whitespace loss is not a *language* failure: the letters
+are all correct and all mappable, so `unmappable_ratio` is 0 and enough short words fall out of the
+wreckage to clear the function-word bar. Whitehead's *Science and the Modern World* scored **0.031**
+against a 0.03 threshold and kept its unreadable layer in the index while 193 successfully OCR'd
+pages sat unused in `doc_ocr`. No phrase query can match such a document, and no threshold on §3.1's
+two axes separates it from a healthy one.
+
+The signal that does is **run length**. Words have a bounded length; glued text does not:
+
+- **`glued_ratio`** — the share of letters stranded inside alphabetic runs of ≥20 characters.
+
+Over the 8,300 PDFs in the corpus, healthy documents sit at **0.003** (p90) and **0.10** (p99) while
+the damaged ones sit at **0.26–0.92**, with an empty gap between. Two checks matter for trusting it:
+
+- **It is not a front-matter artefact.** Sampling the opening of a document and sampling evenly
+  across it agree on every case (0 documents scored high on the head and low on the spread), so the
+  glue is a property of the whole extraction, not of an Elsevier cover page.
+- **It does not condemn the healthy.** On a random 300-document sample the combined rule flags 1,
+  consistent with the ~0.35% base rate.
+
+So the rule gains a third, independent clause:
+
+```
+garbled  ⟺  glued_ratio > 0.25
+         ∨  readable_ratio < 0.03
+         ∨  (readable_ratio < 0.10 ∧ unmappable_ratio > 0.02)
+```
+
+This caught **28 further documents / ~2,400 pages**, mostly monographs whose length had made them
+look like the corpus's most substantial holdings: Ullman's *Principles of Database and Knowledge-base
+Systems* (654 pp), Beer's *Brain of the Firm* (343 pp), Naumann's *Informationsintegration* (481 pp).
+
+**The sampling has to be shared.** The second bug behind Whitehead was that the metadata stage judged
+a document by its first 12 *chunks* while `prefer_ocr` judged it by its first 12 *pages* — different
+text, so a document could be flagged in one place and declined in the other, and the OCR cache was
+never consulted. Both now call `metadata.spread_sample`, which draws 16 samples evenly across the
+document. Agreement between the flagging stage and the substituting stage is a correctness property,
+not a nicety: disagreement is silent, and it costs a full OCR run that is then thrown away.
+
 ### Stage mechanics
 
 - **Rasterize** with `pypdfium2` at `--dpi` (default 200; 300 for hard scans), longest edge clamped
@@ -462,7 +504,7 @@ Ordered by value per unit of work, cheapest first. Each phase is independently u
 | Phase | Work | Cost | Payoff |
 |---|---|---|---|
 | **A** | ✅ **Done** 2026-08-14. Tier 0 container metadata + `has_text_layer`/`chars_per_page`; populate `abstract` from the existing text layer; `field_provenance` table + merge rule | 4.9 min of compute, no model, no GPU | Fixes the 100%-empty abstract column, materializes the OCR trigger, makes everything after it auditable. Results in §8. |
-| **B** | ✅ **Done** 2026-08-14. `ocr.py` + `ocr_worker.py` + `doc_ocr` cache + `mlx-paddleocr-vl` backend; `--only-empty --low-density`, then a second run over the `text_garbled` set found by §3.1 | ~1 day + ~4.8 h of local inference | 116 invisible documents become searchable, entirely offline. Results in §9. |
+| **B** | ✅ **Done** 2026-08-17. `ocr.py` + `ocr_worker.py` + `doc_ocr` cache + `mlx-paddleocr-vl` backend; `--only-empty --low-density`, then runs over the `text_garbled` sets found by §3.1 and §3.2 | ~1 day + ~9 h of local inference | ~148 invisible documents become searchable, entirely offline. Results in §9. |
 | **C** | Front-matter metadata pass over all PDFs (`--all-front-matter`) → `doc_contributors`, `doc_identifiers`, `doc_bibliography` | ~2 days + ~10–20k pages | **The main event.** Attacks 68% missing authors, 82% missing venue, 43% `needs_review`. |
 | **D** | Tier 3 reconciliation via the existing `paperfetch.py` resolvers; ORCID-based author merging | ~1 day | Canonical venues, real author identity, `oa_status` for future harvests. |
 | **E** | `doc_references` extraction + matching → `CITES` edges | ~2–3 days | Unblocks the Phase 2 roadmap item. |
@@ -539,12 +581,24 @@ Three things worth carrying forward:
 
 ## 9. Phase B results (2026-08-14)
 
-Two runs, both on `mlx-paddleocr-vl` at 200 dpi, entirely local.
+Three runs, all on `mlx-paddleocr-vl` at 200 dpi, entirely local.
 
 | Run | Selection | Documents | Pages | Recovered | Wall clock |
 |---|---|---|---|---|---|
 | B1 | `--only-empty --low-density` | 18 | 769 | 1.97 M chars | 65 min (4.9 s/page) |
-| B2 | `--only-empty` (now incl. `text_garbled`) | 98 | 2,736 | — | ~3.7 h projected |
+| B2 | `--only-empty` (now incl. `text_garbled`) | 99 | 2,759 | 7.17 M chars | ~5.5 h |
+| B3 | `--only-empty` (after adding `glued_ratio`, §3.2) | 29 | 2,276 | 6.56 M chars | 159 min (4.2 s/page) |
+
+Cumulative: **146 documents, 5,804 pages, 15.7 M characters, 437 min of inference, zero `error`
+pages** (5,471 ok, 72 blank, 87 low-yield, 174 repetition). Afterwards **no PDF in the corpus is
+flagged `text_garbled`**: the count fell 33 → 2, and both survivors are markdown (a two-chunk dbdb.io
+stub and a notebook that is mostly embedded JSON) — low on prose, but not damaged, and not OCR
+candidates. The recovered documents are substantial: Whitehead's *Science and the Modern World* went
+from unsearchable to 653 chunks of readable prose, Ullman's textbook to 1,807.
+
+Per-page cost is not a constant of the model, it tracks output length: B1's scans average 2.7 k
+chars/page at 4.9 s, B2's born-digital pages 4.2 k at 8.2 s. Estimate OCR runs in characters, not
+pages.
 
 Page outcomes in B1: **689 ok, 18 blank, 40 low-yield, 22 repetition, 0 error** after two retry
 passes. Notes worth keeping:
@@ -565,3 +619,18 @@ passes. Notes worth keeping:
   Sorin et al., *A Customized MVA Model for ILP Multiprocessors* (UW-Madison TR #1369, 1998). The 98
   garbled documents in B2 include many whose heuristic titles were derived *from* the garbage
   (`and hN - 23, 254768.pdf`), so retitling after this run is where much of the value lands.
+- **Verify the promotion, not just the run.** B2 reported success while its best-recovered document
+  was still garbled *in the index*: `prefer_ocr` declined the substitution because it sampled
+  different text than the flagging stage did (§3.2). A recovery pipeline needs an end-to-end check —
+  read a chunk back out of `chunks` and look at it — because every intermediate counter can be
+  healthy while the artefact never lands. That check is what turned up the third defect class.
+- **Selection wants a threshold; substitution wants a comparison.** Sharing one sampling function
+  between the two stages was not enough to fix the borderline document, and could not be: the flag is
+  computed over *chunks* and the indexer works in *pages*, which are different partitions of the same
+  text, so any absolute bar keeps a document that sits on it. `prefer_ocr` now asks the only question
+  that actually matters — *which of these two texts is better?* — by scoring both on
+  `metadata.readability` (function-word share discounted by glue) and requiring a 15% margin. It has
+  no line to fall on, and it made the last stubborn document (0.210 own vs 0.313 OCR) resolve itself.
+  Displacing good text is not a risk this opens up: every document with a cached OCR is one that was
+  deliberately selected, so the comparison is only ever reached for documents already known to be
+  damaged (measured: 0 non-candidates hold cached OCR).

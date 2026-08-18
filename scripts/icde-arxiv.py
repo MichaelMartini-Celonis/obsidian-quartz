@@ -424,12 +424,19 @@ def safe_name(rec: dict) -> str:
     return f"{stem} [{tag}].pdf"
 
 
-def download(records: list[dict]) -> None:
+def download(records: list[dict], dedup: bool = True) -> None:
     found = [r for r in records if r.get("status") in ("found", "downloaded")]
     print(f"downloading {len(found)} matched PDFs...")
     session = pf.session()
-    ok = fail = skip = 0
+    # See the note in sigmod-arxiv.py: the DBLP title is known before any
+    # transfer, so a paper the corpus already holds costs nothing to skip.
+    idx = pf.IndexDedup() if dedup else None
+    ok = fail = skip = in_index = 0
     for i, r in enumerate(found, 1):
+        if idx and idx.contains(r["title"]):
+            r["status"] = "in_index"
+            in_index += 1
+            continue
         dest_dir = OUT_DIR / str(r["year"]) / r["track"]
         dest_dir.mkdir(parents=True, exist_ok=True)
         dest = dest_dir / safe_name(r)
@@ -455,9 +462,11 @@ def download(records: list[dict]) -> None:
             print(f"[{i}/{len(found)}] -- {url[:60]}: {info}")
         if i % 20 == 0:
             save_ckpt(records)
-        time.sleep(DL_SLEEP)
+        if info != "exists":
+            time.sleep(DL_SLEEP)
     save_ckpt(records)
-    print(f"\n=== downloaded {ok}, skipped(existing) {skip}, failed {fail} ===")
+    print(f"\n=== downloaded {ok}, skipped(existing) {skip}, "
+          f"already indexed {in_index}, failed {fail} ===")
 
 
 # ---------------------------------------------------------------------------
@@ -498,11 +507,13 @@ def print_summary(records: list[dict]) -> None:
         print(f"  {y}  {t:10s} {n}")
     from collections import Counter as _C
     tot = len(records)
-    found = sum(1 for r in records if r["status"] in ("found", "downloaded"))
+    OPEN = ("found", "downloaded", "in_index")
+    found = sum(1 for r in records if r["status"] in OPEN)
     dl = sum(1 for r in records if r["status"] == "downloaded")
-    by_src = _C(r.get("source") or "-" for r in records
-                if r["status"] in ("found", "downloaded"))
-    print(f"  total papers: {tot} | OA matches: {found} {dict(by_src)} | downloaded: {dl}")
+    held = sum(1 for r in records if r["status"] == "in_index")
+    by_src = _C(r.get("source") or "-" for r in records if r["status"] in OPEN)
+    print(f"  total papers: {tot} | OA matches: {found} {dict(by_src)} "
+          f"| downloaded: {dl} | already held: {held}")
 
 
 # ---------------------------------------------------------------------------

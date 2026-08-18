@@ -385,13 +385,33 @@ GARBLED_MIN_WORDS = 200
 UNMAPPABLE_RATIO = 0.02
 WEAK_RATIO = 0.10
 
+# A third failure mode escapes both tests: an extractor that recovers every
+# glyph but no word boundaries, so a page arrives as
+# "Thesearethewordsusedbyanoutstandingcritic". Enough short words survive to
+# score just over the function-word bar, and every character is perfectly
+# mappable, yet no query for a phrase in that page can ever match it. It shows
+# up instead as characters marooned in absurdly long runs: healthy documents in
+# this corpus sit at 0.003 (p90) and 0.10 (p99), the damaged ones at 0.26–0.85.
+GLUED_RATIO = 0.25
+GLUED_MIN_LEN = 20
+_RUN_RE = re.compile(r"[a-zA-Z\u00c0-\u024f]+")
+
+
+def glued_ratio(text: str) -> float:
+    """Share of letters stranded inside words too long to be words."""
+    runs = _RUN_RE.findall(text)
+    total = sum(len(r) for r in runs)
+    if not total:
+        return 0.0
+    return sum(len(r) for r in runs if len(r) >= GLUED_MIN_LEN) / total
+
 
 def readable_ratio(text: str) -> float | None:
     """How language-like a text layer is, as a share of function words.
 
     A dense text layer is not the same as a *usable* one. Some PDFs extract to
-    glyph names (``/BW/CT/DA``) or run all words together, which passes every
-    length-based check while being unsearchable and worthless as index content.
+    glyph names (``/BW/CT/DA``), which passes every length-based check while
+    being unsearchable and worthless as index content.
     Returns None when there is too little text to judge.
     """
     words = _WORD_RE.findall(text.lower())
@@ -416,11 +436,45 @@ def is_garbled(text: str) -> tuple[bool, float | None]:
     """Whether a text layer is unusable, plus the readability score behind it."""
     ratio = readable_ratio(text)
     unmappable = unmappable_ratio(text)
+    if glued_ratio(text) > GLUED_RATIO:
+        return True, ratio
     if ratio is None:
         return unmappable > UNMAPPABLE_RATIO, None
     if ratio < GARBLED_RATIO:
         return True, ratio
     return (ratio < WEAK_RATIO and unmappable > UNMAPPABLE_RATIO), ratio
+
+
+# Both the metadata stage and the indexer judge the same documents, so they have
+# to read the same thing: sampling the opening alone would let a clean cover page
+# vouch for a broken body, and disagreeing samples let a document be flagged in
+# one place and silently skipped in the other.
+SAMPLE_PARTS = 16
+
+
+def spread_sample(parts: list[str], n: int = SAMPLE_PARTS) -> str:
+    """Text drawn evenly across a document rather than from its first pages."""
+    if not parts:
+        return ""
+    step = max(1, len(parts) // n)
+    return "\n".join(parts[::step][:n])
+
+
+def readability(text: str) -> float | None:
+    """A single quality score for a text layer, for *comparing* two of them.
+
+    The thresholds above answer "is this bad enough to OCR?". Choosing between an
+    existing layer and a fresh reading of the same pages is a different question,
+    and answering it with a threshold is what let a document sitting near the bar
+    keep its unusable text: whichever side of the line it fell on, some stage
+    disagreed. A comparison has no line to fall on. Function-word share carries
+    the signal; glue discounts it, since text whose words have been run together
+    is unsearchable however well it reads by vocabulary.
+    """
+    ratio = readable_ratio(text)
+    if ratio is None:
+        return None
+    return ratio * (1.0 - glued_ratio(text))
 
 
 def _derived_text_stats(con, doc_id: str, n_pages: int | None,
@@ -438,13 +492,18 @@ def _derived_text_stats(con, doc_id: str, n_pages: int | None,
     if filetype == ".pdf":
         out["is_image_only"] = n_chunks == 0
     if n_chunks:
-        sample = "\n".join(
+        sample = spread_sample([
             r[0] or "" for r in con.execute(
-                "SELECT text FROM chunks WHERE doc_id = ? ORDER BY ordinal LIMIT 12",
-                [doc_id]).fetchall())
+                "SELECT text FROM chunks WHERE doc_id = ? ORDER BY ordinal",
+                [doc_id]).fetchall()])
         garbled, ratio = is_garbled(sample)
         out["text_readable_ratio"] = ratio
-        out["text_garbled"] = garbled
+        # `text_garbled` means "the text layer failed, re-read the pages", which
+        # only a PDF can do. In markdown and notebooks the text *is* the
+        # document, so a low score there says the content is structured (a dbdb
+        # fact sheet, a post that is mostly a data blob) — true, but not a defect
+        # and not actionable. Scoring stays; the verdict does not.
+        out["text_garbled"] = garbled and filetype == ".pdf"
     return out
 
 
@@ -537,7 +596,7 @@ def status(con) -> list[tuple[str, str]]:
         ("image-only PDFs", "SELECT count(*) FROM documents WHERE is_image_only"),
         ("thin text (<200 chars/page)",
          "SELECT count(*) FROM documents WHERE chars_per_page < 200 AND has_text_layer"),
-        ("garbled text layer (unmappable fonts)",
+        ("garbled text layer (unreadable, glued or unmappable)",
          "SELECT count(*) FROM documents WHERE text_garbled"),
         ("landscape (slide-shaped)",
          "SELECT count(*) FROM documents WHERE orientation = 'landscape'"),

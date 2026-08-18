@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import random
 import re
 import sys
@@ -149,6 +150,11 @@ def _ydl(opts: dict):
     from yt_dlp import YoutubeDL
     base = {"quiet": True, "no_warnings": True, "skip_download": True,
             "ignoreerrors": True, "extractor_args": {"youtubetab": {"approximate_date": ["true"]}}}
+    # The caption fallback hits the same rate limit as the transcript API, so it
+    # needs the same escape hatch (see `_proxy_config`).
+    proxy = os.environ.get("YOUTUBE_PROXY_HTTPS") or os.environ.get("YOUTUBE_PROXY_HTTP")
+    if proxy:
+        base["proxy"] = proxy
     base.update(opts)
     return YoutubeDL(base)
 
@@ -236,13 +242,41 @@ class BlockedError(Exception):
     """Raised when YouTube signals rate-limiting / IP blocking."""
 
 
+def _proxy_config():
+    """Route requests through a proxy, if one is configured.
+
+    A YouTube transcript block is tied to the egress IP and outlasts any
+    practical backoff — measured on this network, a run gets ~20 videos and then
+    nothing until the next day, whatever the pacing. Changing IP is the only
+    documented remedy, so honour whichever proxy the environment offers:
+
+      YOUTUBE_PROXY_HTTP / YOUTUBE_PROXY_HTTPS   any http(s) or SOCKS proxy URL
+      WEBSHARE_PROXY_USERNAME / …_PASSWORD       Webshare rotating residential
+
+    Returns None when nothing is set, which keeps the direct path unchanged.
+    """
+    user = os.environ.get("WEBSHARE_PROXY_USERNAME")
+    password = os.environ.get("WEBSHARE_PROXY_PASSWORD")
+    if user and password:
+        from youtube_transcript_api.proxies import WebshareProxyConfig
+        print("  [proxy] Webshare rotating residential")
+        return WebshareProxyConfig(proxy_username=user, proxy_password=password)
+    http = os.environ.get("YOUTUBE_PROXY_HTTP")
+    https = os.environ.get("YOUTUBE_PROXY_HTTPS") or http
+    if http or https:
+        from youtube_transcript_api.proxies import GenericProxyConfig
+        print(f"  [proxy] {https or http}")
+        return GenericProxyConfig(http_url=http, https_url=https)
+    return None
+
+
 def fetch_transcript(video_id: str, langs: list[str]):
     """Return (snippets, language_code, is_generated).
 
     Raises BlockedError on block signals; re-raises skip-worthy exceptions.
     """
     from youtube_transcript_api import YouTubeTranscriptApi
-    api = YouTubeTranscriptApi()
+    api = YouTubeTranscriptApi(proxy_config=_proxy_config())
     try:
         tlist = api.list(video_id)
         try:

@@ -92,6 +92,48 @@ class ChatClient:
         return _parse_json(content)
 
 
+def _close_truncated(text: str) -> str | None:
+    """Rebuild a JSON object that a token limit cut short, or None if hopeless.
+
+    A truncated reply is not garbage. The keys the model finished before the cut
+    are intact, and it emits them in the order the prompt asks for, so what
+    survives is the part we care most about. Discarding the whole document over a
+    clipped trailing value throws away a good title and author list along with
+    it — and it charged for them.
+
+    The repair keeps only members that were *completed*: everything up to the
+    last comma at the object's top level, with any open brackets closed. The
+    member being written when the text ran out is dropped whole rather than
+    salvaged, because half of a list is a specific kind of wrong — an author list
+    missing its tail reads as authoritative and is not.
+    """
+    start = text.find("{")
+    if start < 0:
+        return None
+    depth = 0
+    in_str = esc = False
+    cut = None
+    for i, ch in enumerate(text[start:], start):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+        elif ch in "{[":
+            depth += 1
+        elif ch in "}]":
+            depth -= 1
+        elif ch == "," and depth == 1:
+            cut = i
+    if cut is None:
+        return None
+    return text[start:cut] + "}"
+
+
 def _parse_json(text: str) -> dict:
     text = text.strip()
     if text.startswith("```"):
@@ -100,9 +142,13 @@ def _parse_json(text: str) -> dict:
         obj = json.loads(text)
     except json.JSONDecodeError:
         m = re.search(r"\{.*\}", text, re.S)  # first {...} block
-        if not m:
-            raise
-        obj = json.loads(m.group(0))
+        if m:
+            obj = json.loads(m.group(0))
+        else:
+            repaired = _close_truncated(text)
+            if repaired is None:
+                raise
+            obj = json.loads(repaired)
     return obj if isinstance(obj, dict) else {}
 
 
