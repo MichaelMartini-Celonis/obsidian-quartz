@@ -20,6 +20,8 @@ Sibling checkouts under `reference/celonis/` (also gitignored, own `.git`, refer
 - `pmi-latex-collection/` — [celonis/pmi-latex-collection](https://github.com/celonis/pmi-latex-collection): internal LaTeX documents of the Process Mining Innovation team.
 - `pm-prototyping-env/` — [celonis/pm-prototyping-env](https://github.com/celonis/pm-prototyping-env): Object-Centric Data Model (OCDM) prototyping environment.
 
+`reference/` also holds non-Celonis upstream checkouts under the same rules (own `.git`, gitignored, reference only): `bitol/open-data-contract-standard/` and `bitol/open-data-product-standard/` (the ODCS/ODPS standards) and `databrickslabs/ontos/` (a Unity Catalog business catalog implementing them). Their documentation is also imported into `Literature/`; see `~/docs/README.md`.
+
 > Tip: root an agent session at `~/docs` to browse the whole knowledge repository (Literature, Inbox, and these Celonis reference checkouts). See `~/docs/README.md`.
 
 ## When to use it

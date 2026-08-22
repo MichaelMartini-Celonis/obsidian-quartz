@@ -26,12 +26,17 @@ for new material — rather than being confined to a single project subfolder.
 ├── scripts/               <- Python tooling (the Inbox importer, etc.) + its .venv
 ├── imports/               <- import manifests + library backups
 └── reference/             <- gitignored; independent checkouts used only as reference
-    └── celonis/           <- Celonis repos, each with its own .git (pulled separately)
-        ├── context-model-documentation/  <- Context Model wiki (codename pig-sl)
-        ├── studio-platform-hq/            <- Studio Platform HQ knowledge base (projects/wiki)
-        ├── pm-solutions/                  <- Process Mining Solutions team misc code
-        ├── pmi-latex-collection/          <- PM Innovation team internal LaTeX docs
-        └── pm-prototyping-env/            <- OCDM prototyping environment
+    ├── celonis/           <- Celonis repos, each with its own .git (pulled separately)
+    │   ├── context-model-documentation/  <- Context Model wiki (codename pig-sl)
+    │   ├── studio-platform-hq/            <- Studio Platform HQ knowledge base (projects/wiki)
+    │   ├── pm-solutions/                  <- Process Mining Solutions team misc code
+    │   ├── pmi-latex-collection/          <- PM Innovation team internal LaTeX docs
+    │   └── pm-prototyping-env/            <- OCDM prototyping environment
+    ├── bitol/             <- Bitol (LF AI & Data) data-contract / data-product standards
+    │   ├── open-data-contract-standard/   <- ODCS spec + JSON Schema + examples
+    │   └── open-data-product-standard/    <- ODPS spec + JSON Schema + examples
+    └── databrickslabs/
+        └── ontos/         <- Business Catalog for Unity Catalog (ODCS/ODPS implementation)
 ```
 
 `Literature/`, `Transcripts/`, `notebooks/`, `db_systems/`, the contents of `Inbox/`, `imports/`,
@@ -121,6 +126,21 @@ part of this project or the Quartz site — they only serve as reference context
 
 Update any of them with `git -C ~/docs/reference/celonis/<repo> pull --ff-only`.
 
+### `reference/bitol/`, `reference/databrickslabs/` — upstream open-source checkouts
+Checkouts of open-source projects whose documentation is *also* imported into `Literature/` (see
+the table below). They are kept on disk because the markdown-only import drops what a reader of a
+standard eventually wants: the JSON Schema history, the validation scripts, the mkdocs build, and
+the git history behind a normative change.
+
+| Checkout | Remote | What it is |
+|---|---|---|
+| `bitol/open-data-contract-standard/` | [bitol-io/open-data-contract-standard](https://github.com/bitol-io/open-data-contract-standard) | ODCS — the Bitol (LF AI & Data) data **contract** standard: spec pages, JSON Schema v2.2.1 → v3.1.0, example contracts. |
+| `bitol/open-data-product-standard/` | [bitol-io/open-data-product-standard](https://github.com/bitol-io/open-data-product-standard) | ODPS — the Bitol data **product** standard: spec, JSON Schema v0.9.0 → v1.0.0, example products. |
+| `databrickslabs/ontos/` | [databrickslabs/ontos](https://github.com/databrickslabs/ontos) (default branch `development`) | Ontos — a Business Catalog for Unity Catalog that implements ODCS/ODPS (domains, data products, contracts, compliance DSL, ontology/knowledge graph). |
+
+The Bitol doc sites are `mkdocs` builds of these checkouts, so `import-docs.py` reads the files
+directly and cites the hosted page each one renders to.
+
 ### `scripts/` and `imports/`
 `scripts/` holds the Python tooling that maintains this repository (Inbox importer and a few
 historical migration helpers), with its virtualenv at `scripts/.venv/`. `imports/` holds import
@@ -137,7 +157,7 @@ Python tooling lives in `scripts/` (virtualenv at `scripts/.venv/`):
 | `scripts/.venv/bin/python scripts/import-downloads.py` | Import + classify + rename files dropped in `Inbox/` into `Literature/` (de-duplicates against the library). |
 | `scripts/.venv/bin/python scripts/import-web-book.py` | Import free online HTML books (e.g. the Google SRE books) into `Literature/` as markdown (`--list` / `--only KEY`). |
 | `scripts/.venv/bin/python scripts/import-blogs.py` | Import competitor/tool **blog** posts into `Literature/Blogs/<Company>/` (drops changelogs/release/PR posts). Registry of sources; `--list` / `--only KEY` / `--dry-run`. |
-| `scripts/.venv/bin/python scripts/import-docs.py` | Build curated third-party doc collections (**Tool & Competitor Documentation** for SQL dialects; **Source Systems Knowledge** for ERP/source-system table references; **Specifications** for standards & ontologies) as one consolidated markdown file per source. Discovery via `llms_full` / `sitemap` / `crawl` / `toc` / `pages` / `git`. `--list` / `--only KEY` / `--dry-run` / `--force`. |
+| `scripts/.venv/bin/python scripts/import-docs.py` | Build curated third-party doc collections (**Tool & Competitor Documentation** for SQL dialects; **Source Systems Knowledge** for ERP/source-system table references; **Specifications** for standards & ontologies) as one consolidated markdown file per source. Discovery via `llms_full` / `sitemap` / `crawl` / `toc` / `pages` / `git` (which can read an existing `reference/` checkout and, given the site's sitemap, cite the hosted page each repo file renders to). `--list` / `--only KEY` / `--dry-run` / `--force`. |
 | `scripts/.venv/bin/python scripts/dbdb-systems.py all` | Mirror the CMU [dbdb.io](https://dbdb.io) "Database of Databases" into `db_systems/dbdb/*.md` (tag front-matter + prose) **and** derive the dbdb-aligned tag taxonomy (`taxonomy` / `gather` / `scrape`). |
 | `scripts/.venv/bin/python scripts/package-data.py` | Package the DuckDB search index + `Literature/` into the companion **Git LFS** data repo (`init` / `pack` / `push` / `restore` / `status`). |
 

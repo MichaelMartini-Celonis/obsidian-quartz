@@ -10,7 +10,8 @@ Companion to ``import-blogs.py`` (company blogs) and ``import-web-book.py``
 (books). For each registered documentation source this tool discovers the doc
 pages (via ``llms-full.txt``, a ``sitemap.xml``, a bounded BFS ``crawl``, a
 ``toc`` table-of-contents page, an explicit ``pages`` list, or a ``git``
-checkout of markdown), converts each page to markdown, and writes **one
+checkout — either a shallow clone or an existing ``reference/`` checkout named
+by ``clone_dir``), converts each page to markdown, and writes **one
 consolidated markdown file per source** (``<Company> Documentation.md``) with a
 per-page ``<!-- source: URL -->`` provenance marker — so the search engine
 ingests a tool's docs as a single reference document and the knowledge graph can
@@ -31,6 +32,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -83,8 +85,13 @@ class DocSource:
     pages: tuple[str, ...] = ()     # explicit list of page URLs to fetch as-is
     # git
     repo: str = ""
+    branch: str = ""                # blob-URL ref (and clone branch); defaults to HEAD
     subdir: str = ""
+    clone_dir: str = ""             # reuse an existing checkout (relative to DOCS_ROOT)
     file_globs: tuple[str, ...] = ("*.md",)   # which files to ingest from a git checkout
+    # repo-backed doc sites: sitemap URLs are matched to the repo files they are
+    # generated from, so the provenance marker names the hosted page
+    url_map: tuple[tuple[str, str], ...] = ()   # explicit relpath -> hosted URL
     # butter_cms
     api_url: str = ""               # JSON endpoint proxying the ButterCMS content API
     api_path: str = ""              # value of its ``path`` query parameter
@@ -270,6 +277,28 @@ SOURCES: list[DocSource] = [
         cap=400, source_url="https://docs.databricks.com/aws/en/",
         license="\u00a9 Databricks, Inc.",
     ),
+    # Ontos is a Databricks Labs app implementing ODCS/ODPS on top of Unity
+    # Catalog, so it is filed with the tool docs rather than the standards it
+    # consumes. It publishes no doc site \u2014 the guides live in the repo. Its
+    # internal churn (refactoring logs, security reviews, TODO trackers under
+    # docs/notes/ and .planning/) is excluded: that is engineering bookkeeping,
+    # not documentation, and it would dominate retrieval by sheer volume.
+    DocSource(
+        key="ontos", company="Databricks", method="git",
+        title="Databricks Labs Ontos \u2014 Business Catalog for Unity Catalog "
+              "(User Guide, Handbook & Compliance DSL)",
+        filename="Databricks Labs Ontos Documentation.md",
+        repo="https://github.com/databrickslabs/ontos",
+        branch="development",
+        clone_dir="reference/databrickslabs/ontos",
+        file_globs=("*.md",),
+        drop_re=r"^(CLAUDE|SECURITY|CONTRIBUTING|\.planning/|plans/|docs/notes/"
+                r"|docs/TESTING_PLAN|docs/testing-guidelines|docs/LICENSE_CHECKING"
+                r"|src/frontend/|src/backend/|src/e2e/)",
+        prefer=r"^(README\.md|src/docs/USER-GUIDE\.md|src/docs/|docs/handbook/)",
+        cap=120, source_url="https://github.com/databrickslabs/ontos",
+        license="Databricks License \u2014 \u00a9 2025 Databricks, Inc.",
+    ),
     DocSource(
         key="flink", company="Apache Flink", method="sitemap",
         title="Apache Flink Documentation (stable)",
@@ -370,6 +399,67 @@ SOURCES: list[DocSource] = [
         pages=("https://www.semanticarts.com/gist/",),
         cap=50, source_url="https://www.semanticarts.com/gist/",
         license="\u00a9 Semantic Arts (gist released under CC BY)",
+    ),
+    # --- Specifications: data contracts & data products (Bitol / LF AI & Data) -
+    # Both Bitol sites are mkdocs builds of the checkouts below \u2014 build_docs.sh
+    # copies the root markdown into docs/ and renders one page per example YAML \u2014
+    # so ingesting the repo yields the hosted pages verbatim (cited by their site
+    # URL) plus the normative JSON Schema, which the site does not publish.
+    # Superseded schema versions are dropped; only the latest is kept.
+    DocSource(
+        key="odcs", company="Bitol", method="git",
+        collection="Specifications",
+        title="Open Data Contract Standard (ODCS) v3.1.0 \u2014 Specification, "
+              "JSON Schema & Examples",
+        filename="Open Data Contract Standard (ODCS).md",
+        repo="https://github.com/bitol-io/open-data-contract-standard",
+        branch="main",
+        clone_dir="reference/bitol/open-data-contract-standard",
+        file_globs=("*.md", "*.yaml", "*.json"),
+        sitemaps=("https://bitol-io.github.io/open-data-contract-standard/"
+                  "latest/sitemap.xml",),
+        drop_re=r"^(AUTHORS|CONTRIBUTING|LICENSE|building-doc|history"
+                r"|context7\.json|\.github/|src/|schema/odcs-json-schema-v)",
+        prefer=r"^(README\.md|docs/(README|fundamentals|schema|references"
+               r"|data-quality)\.md)",
+        url_map=(
+            ("README.md",
+             "https://bitol-io.github.io/open-data-contract-standard/latest/home/"),
+            ("docs/README.md",
+             "https://bitol-io.github.io/open-data-contract-standard/latest/"),
+            ("docs/examples/README.md",
+             "https://bitol-io.github.io/open-data-contract-standard/latest/examples/"),
+        ),
+        cap=100,
+        source_url="https://bitol-io.github.io/open-data-contract-standard/latest/",
+        license="Apache-2.0 \u2014 \u00a9 Bitol / LF AI & Data Foundation",
+    ),
+    DocSource(
+        key="odps", company="Bitol", method="git",
+        collection="Specifications",
+        title="Open Data Product Standard (ODPS) v1.0.0 \u2014 Specification, "
+              "JSON Schema & Examples",
+        filename="Open Data Product Standard (ODPS).md",
+        repo="https://github.com/bitol-io/open-data-product-standard",
+        branch="main",
+        clone_dir="reference/bitol/open-data-product-standard",
+        file_globs=("*.md", "*.yaml", "*.json"),
+        sitemaps=("https://bitol-io.github.io/open-data-product-standard/"
+                  "latest/sitemap.xml",),
+        drop_re=r"^(AUTHORS|CONTRIBUTING|LICENSE|context7\.json|package\.json"
+                r"|\.github/|scripts/|schema/odps-json-schema-v)",
+        prefer=r"^(docs/README\.md|README\.md)",
+        url_map=(
+            ("README.md",
+             "https://bitol-io.github.io/open-data-product-standard/latest/home/"),
+            ("docs/README.md",
+             "https://bitol-io.github.io/open-data-product-standard/latest/"),
+            ("docs/examples/README.md",
+             "https://bitol-io.github.io/open-data-product-standard/latest/examples/"),
+        ),
+        cap=60,
+        source_url="https://bitol-io.github.io/open-data-product-standard/latest/",
+        license="Apache-2.0 \u2014 \u00a9 Bitol / LF AI & Data Foundation",
     ),
     # HQDM — Matthew West's 4-dimensionalist data model, as implemented for the
     # UK Information Management Framework. The book is paywalled; these repos are
@@ -704,27 +794,106 @@ def import_pages(session, src, urls, delay, dry_run) -> tuple[int, str]:
     return kept, "".join(parts)
 
 
-def import_git(src: DocSource, dry_run) -> tuple[int, str]:
-    clone = IMPORTS / f"{src.key}-src"
+_FENCE_LANG = {".yaml": "yaml", ".yml": "yaml", ".json": "json"}
+
+
+def _alias_prefix(sitemap_url: str, locs: list[str]) -> tuple[str, str]:
+    """Detect a versioned-docs alias, as ``(resolved prefix, alias prefix)``.
+
+    ``mike`` serves an alias directory (``latest/``) whose sitemap lists the
+    version it currently resolves to (``v3.1.0/``). The alias is the durable
+    URL, so entries are rewritten onto it — but only when the two differ in a
+    single path segment, which is what makes one an alias of the other rather
+    than an unrelated location.
+    """
+    alias = sitemap_url.rsplit("/", 1)[0] + "/"
+    common = os.path.commonprefix(locs) if locs else ""
+    common = common[:common.rindex("/") + 1] if "/" in common else ""
+    if not common or common == alias:
+        return "", ""
+    if alias[:-1].rsplit("/", 1)[0] != common[:-1].rsplit("/", 1)[0]:
+        return "", ""
+    return common, alias
+
+
+def _hosted_slugs(session, src: DocSource) -> dict[str, str]:
+    """Index a doc site's sitemap by page slug (and its parent path).
+
+    Static site generators publish one URL per source file, so a repo-backed
+    site can be ingested from the checkout while still citing the page a reader
+    would open. Keys are the last one to three path segments of each URL.
+    """
+    out: dict[str, str] = {}
+    for sm in src.sitemaps:
+        locs = _sitemap_locs(session, (sm,))
+        resolved, alias = _alias_prefix(sm, locs)
+        for url in locs:
+            if resolved and url.startswith(resolved):
+                url = alias + url[len(resolved):]
+            segs = [s for s in url.split("://")[-1].rstrip("/").split("/") if s][1:]
+            for n in (1, 2, 3):
+                if len(segs) >= n:
+                    out.setdefault("/".join(segs[-n:]).lower(), url)
+    return out
+
+
+def _git_source_url(rel: Path, slugs: dict[str, str], src: DocSource) -> str:
+    """Hosted doc-page URL for a repo file, or its GitHub blob URL."""
+    for pat, url in src.url_map:
+        if rel.as_posix() == pat:
+            return url
+    if slugs:
+        # docs/examples/quality/column-accuracy.odcs.yaml -> "column-accuracy",
+        # then "quality/column-accuracy" — the qualified form wins on collision.
+        stem = rel.name.split(".")[0].lower()
+        parents = [p.lower() for p in rel.parent.parts]
+        cands = [stem] + ["/".join(parents[-n:] + [stem]) for n in (1, 2)]
+        for key in reversed(cands):
+            if key in slugs:
+                return slugs[key]
+    return f"{src.repo}/blob/{src.branch or 'HEAD'}/{rel.as_posix()}"
+
+
+def import_git(session, src: DocSource, dry_run) -> tuple[int, str]:
+    if src.clone_dir:
+        clone = DOCS_ROOT / src.clone_dir
+        if not clone.exists():
+            raise FileNotFoundError(f"checkout missing: {clone}")
+    else:
+        clone = IMPORTS / f"{src.key}-src"
     if clone.exists():
         subprocess.run(["git", "-C", str(clone), "pull", "--ff-only"],
                        capture_output=True)
     else:
         IMPORTS.mkdir(parents=True, exist_ok=True)
-        subprocess.run(["git", "clone", "--depth", "1", src.repo, str(clone)],
-                       capture_output=True, check=True)
+        cmd = ["git", "clone", "--depth", "1"]
+        if src.branch:
+            cmd += ["--branch", src.branch]
+        subprocess.run(cmd + [src.repo, str(clone)], capture_output=True, check=True)
     root = clone / src.subdir if src.subdir else clone
-    files: list[Path] = []
+    files: set[Path] = set()
     for pat in src.file_globs:
-        files.extend(root.rglob(pat))
+        files.update(root.rglob(pat))
+    rels = sorted(f.relative_to(clone) for f in files)
+    if src.drop_re:
+        drop = re.compile(src.drop_re)
+        rels = [r for r in rels if not drop.search(r.as_posix())]
+    if src.prefer:
+        pr = re.compile(src.prefer)
+        rels = ([r for r in rels if pr.search(r.as_posix())]
+                + [r for r in rels if not pr.search(r.as_posix())])
+    slugs = _hosted_slugs(session, src) if src.sitemaps else {}
     parts, kept = [], 0
-    for f in sorted(set(files)):
-        rel = f.relative_to(clone)
-        text = f.read_text(encoding="utf-8", errors="replace").strip()
+    for rel in rels[:src.cap]:
+        text = (clone / rel).read_text(encoding="utf-8", errors="replace").strip()
         if len(text) < 120:
             continue
-        parts.append(f"\n\n<!-- source: {src.repo}/blob/master/{rel} -->\n")
-        parts.append(text)
+        parts.append(f"\n\n<!-- source: {_git_source_url(rel, slugs, src)} -->\n")
+        lang = _FENCE_LANG.get(rel.suffix.lower())
+        if lang:
+            parts.append(f"## {rel.as_posix()}\n\n```{lang}\n{text}\n```")
+        else:
+            parts.append(text)
         kept += 1
     return kept, "".join(parts)
 
@@ -786,8 +955,8 @@ def import_source(session, src: DocSource, delay, dry_run, force) -> dict:
         n, body = import_llms_full(session, src)
         pages_note = "single llms-full.txt export"
     elif src.method == "git":
-        n, body = import_git(src, dry_run)
-        pages_note = f"{n} markdown files from {src.repo}"
+        n, body = import_git(session, src, dry_run)
+        pages_note = f"{n} files from {src.repo}"
     elif src.method == "butter_cms":
         n, body = import_butter_cms(session, src)
         pages_note = f"{n} pages (via the ButterCMS content API)"

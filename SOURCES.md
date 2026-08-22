@@ -132,7 +132,8 @@ via `scripts/import-docs.py` (SQL dialects & data-platform foundations). ✅
 PostgreSQL · GoogleSQL (ZetaSQL) · Apache DataFusion · CedarDB · DuckDB ·
 RelationalAI (docs + templates/guides) · ClickHouse · Gel · Malloy ·
 Palantir Foundry (Ontology, Quiver/Insight/Vertex, Automate, Machinery) · Bauplan ·
-Snowflake · Databricks · Apache Flink · Oracle (SQL) · SAP HANA (SQL).
+Snowflake · Databricks (platform docs + **Databricks Labs Ontos**) ·
+Apache Flink · Oracle (SQL) · SAP HANA (SQL).
 
 > SAP LeanIX docs are a JS SPA and could not be fetched — ⛔.
 
@@ -148,6 +149,18 @@ Snowflake · Databricks · Apache Flink · Oracle (SQL) · SAP HANA (SQL).
 > collection file (`RelationalAI Templates & Guides.md`). Lesson: an
 > `llms-full`/sitemap export can be *present and complete-looking* while omitting
 > whole sections — spot-check a known page before trusting absence of a term.
+
+> **A doc site that is built from a repo should be read from the repo.** Both
+> Bitol standards and Ontos publish (or generate) their pages from markdown that
+> is already in git, so scraping the site would have bought a second, lossier
+> copy of files the garden holds exactly. `import-docs.py`'s `git` method now
+> reads an existing `reference/` checkout (`clone_dir`) and, given the site's
+> sitemap, resolves each repo file to the **hosted page it renders to** — so the
+> provenance marker is the URL a reader would open even though nothing was
+> scraped. It also picks up what the site never publishes: the normative JSON
+> Schema. For `mike`-versioned sites the resolved version (`…/v3.1.0/…`) is
+> rewritten back onto the `latest/` alias, which is the URL that still works
+> after the next release.
 
 ---
 
@@ -167,7 +180,7 @@ Anchor Modeling · CedarDB · Kùzu · TypeDB · **Andy Pavlo (CMU)** 🔄.
 | Collection                  | Sources                                                                    | Status |
 | --------------------------- | -------------------------------------------------------------------------- | ------ |
 | `Source Systems Knowledge/` | Oracle Fusion interface tables · SAP data-dictionary tables                | ✅      |
-| `Specifications/`           | OMG (BPMN/CMMN/DMN) · W3C (RDF/OWL) · OntoUML · BFO · Semantic Arts (gist) | ✅      |
+| `Specifications/`           | OMG (BPMN/CMMN/DMN) · W3C (RDF/OWL) · OntoUML · BFO · Semantic Arts (gist) · HQDM / MagmaCore · Industrial Ontologies Foundry · **Bitol** (ODCS v3.1.0, ODPS v1.0.0) | ✅      |
 
 
 ---
@@ -189,13 +202,15 @@ Process Mining Summer School, …).
 
 ---
 
-## 7. Celonis internal & reference
+## 7. Local reference checkouts (gitignored, own `.git`)
 
 
 | Source                                   | What                                                                                                                                                                                                                          | Status |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | `Literature/Celonis Internal/`           | Curated internal docs (PIG-SL / PQL / Saola / CCMM / EMS 2.0 slide decks & specs). Routed by the internal-marker detector in `scripts/import-downloads.py`; office files (`.docx/.pptx/.xlsx`) treated as internal by suffix. | ✅      |
-| `reference/context-model-documentation/` | Gitignored local checkout of the Celonis Context Model wiki (codename `pig-sl`) — reference only.                                                                                                                             | ✅      |
+| `reference/celonis/`                     | Celonis checkouts — Context Model wiki (`pig-sl`), Studio Platform HQ, PM Solutions, PMI LaTeX, OCDM prototyping env. Reference only.                                                                                          | ✅      |
+| `reference/bitol/`                       | ODCS + ODPS standards. Also the *source* of the two `Specifications/Bitol/` collections (§5) — the doc sites are mkdocs builds of these repos.                                                                                 | ✅      |
+| `reference/databrickslabs/ontos/`        | Ontos (branch `development`). Also the source of the Ontos collection (§3); the repo's internal churn (`docs/notes/`, `.planning/`, testing plans) is excluded from the import.                                               | ✅      |
 
 
 ---
