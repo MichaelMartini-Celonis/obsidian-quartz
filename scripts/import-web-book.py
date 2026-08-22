@@ -83,6 +83,17 @@ BOOKS: list[Book] = [
         content_xpath="//section[@data-type='chapter'] | //body",
         out_name="Adkins et al. - Building Secure and Reliable Systems.md",
     ),
+    Book(
+        key="ohdsi",
+        title="The Book of OHDSI",
+        authors="Observational Health Data Sciences and Informatics",
+        license="CC BY 4.0 — © 2021 OHDSI",
+        toc_url="https://ohdsi.github.io/TheBookOfOhdsi/",
+        link_re=r"^https://ohdsi\.github\.io/TheBookOfOhdsi/[A-Za-z0-9-]+\.html$",
+        content_xpath="//div[@id='content'] | //section[contains(@class,'level1')] | //main",
+        out_name="OHDSI - The Book of OHDSI.md",
+        folder="Clinical Informatics",
+    ),
 ]
 
 # Elements that are never content.
