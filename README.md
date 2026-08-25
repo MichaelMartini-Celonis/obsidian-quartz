@@ -367,7 +367,31 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 > the largest single omission, and the text behind everything the deck asserts
 > about abstraction level and steady state. Of **100** cohort targets **77** were
 > fetched; **107 documents** were imported in total and the index went
-> **13,137 → 13,245 documents / 823,239 chunks**.
+> **13,137 → 13,245 documents / 823,239 chunks**. Re-audited at the same
+> thresholds, the 40 concepts moved from **2 MISSING / 15 mention-only / 9 thin /
+> 14 covered** to **0 / 6 / 7 / 27**.
+>
+> What is still weak is worth naming, because most of it is not a fetching
+> problem. **Simulation *tooling*** — Simul8, AnyLogic, FlexSim, Vensim — has no
+> literature to hold: vendors publish manuals, not papers, and the WSC vendor
+> track is advertising. **Short-term simulation** and **hybrid DES+SD+ABS** are
+> each a section inside works the library now holds rather than a subject anyone
+> wrote a paper about, which is arguably the deck's own point about short-term
+> simulation. **Resource calendars / multitasking** is the one real acquisition
+> gap left (López-Pintado & Dumas, *DKE* 2021, closed). And **Pollaczek–Khinchine,
+> PASTA and Lindley's recursion** are textbook material — they are in Kleinrock
+> and Wolff, not in any paper an OA resolver can reach.
+>
+> One methodological caveat, since it changed the answer: the audit measures the
+> *words* a concept is named by, and queueing theory does not name itself the way
+> a topic map does. Whitt's review of Little's law is titled *A Review of L = W
+> and Extensions* and writes the result as `L = λW` throughout, never as "Little's
+> law"; Robinson writes "conceptual modeling" where the map said "modelling"; the
+> infinite-server probes were unhyphenated while every holding hyphenates. Three
+> concepts read *mention only* against holdings that were sitting right there. The
+> probe terms in `gap-topics.json` are fixed, but the lesson generalises — a
+> MISSING verdict is a hypothesis about the corpus *and* about the vocabulary, and
+> the `closest holding` column is what makes the difference visible.
 >
 > Three things worth recording. **The classics are genuinely walled**: Little
 > (1961, 2011), Kingman (1961), Lindley (1952) and Jackson (1963) have no open
@@ -398,29 +422,49 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 > substitutes the blog index for a removed post, and filenames that depend on
 > which apostrophe a site serves; both are described under *`Blogs/<Company>/`*.
 >
-> Enrichment of the round is **done** — one `scripts/enrich-loop.sh` pass took
-> 1,961 documents (the 1,889 new posts plus the IDSA/Networks/Panikzettel
-> leftovers) with **0 failures** in ~87 min, so every document in the corpus now
-> carries LLM `title`/`authors`/`keywords`.
+> Enrichment of the round is **done** — `scripts/enrich-loop.sh` took **1,961**
+> documents (the 1,889 new posts plus the IDSA/Networks/Panikzettel leftovers)
+> with **0 failures** in ~87 min, and a second pass cleared the **110** that a
+> concurrent `gap-audit` run added meanwhile. The enrichment backlog is now
+> **empty** and `needs_review` is **0**: every document in the corpus carries LLM
+> `title`/`authors`/`keywords`.
 >
-> **`search/index.duckdb` is 86% empty space**, and it is worth knowing how to
-> tell. The file had grown to **38.4 GiB** against the ~1.7 GB recorded further up
-> this page, which is far more than 1,891 markdown files can explain. `PRAGMA
-> database_size` settles what kind of growth it is: of **157,576** blocks (256 KiB
-> each) only **22,676 are used** — **5.5 GiB of data against 32.9 GiB of free
-> blocks** — and `chunks` has **zero** rows orphaned from `documents`. So this is
-> not runaway data or a leak of dead rows; it is a file that never shrank. DuckDB
-> reuses free blocks but does not truncate, and this index has been rewritten
-> repeatedly in place (OCR re-reads, the `.docx` table re-index, `retitle`, and
-> every `enrich` promote), so the high-water mark stuck.
+> **`search/index.duckdb` was 86% empty space — now compacted, 38.5 → 5.9 GiB.**
+> The file had grown to **38.4 GiB** against the ~1.7 GB recorded further up this
+> page, which is far more than 1,891 markdown files can explain, and the first
+> useful step was establishing *what kind* of growth it was. `PRAGMA
+> database_size` answers that directly: of **157,576** blocks (256 KiB each) only
+> **22,676 were used** — **5.5 GiB of data against 32.9 GiB of free blocks** — and
+> `chunks` had **zero** rows orphaned from `documents`. So it was neither runaway
+> data nor a leak of dead rows, but a file that never shrank; `CHECKPOINT` cannot
+> help, because the WAL was already `0 bytes`.
 >
-> `CHECKPOINT` will not recover it — that flushes the WAL, which is already
-> `0 bytes`. Reclaiming the space means rewriting the database into a fresh file
-> (`ATTACH 'new.duckdb'; COPY FROM DATABASE index TO new;`), then swapping it in
-> once the row counts match and keeping the old file until they do. That needs
-> **exclusive** access, so it must not be attempted while another session holds the
-> write lock — worth doing before the next `package-data.py pack`, which would
-> otherwise push ~33 GiB of nothing into the LFS repo.
+> **Why it grew is worth knowing, because it will happen again.**
+> `db.create_search_indexes` **drops and recreates** the HNSW and BM25 indexes on
+> every `index` run, and each rebuild writes fresh blocks while freeing the old
+> ones. Measured right after compaction, a pass that indexed **2 documents** took
+> the file from 5.90 to 7.20 GiB and left **5,114 free blocks** — so the cost is
+> roughly **1.2 GiB of permanent high-water mark per index pass**, regardless of
+> how little was ingested. Dozens of passes (plus the OCR re-reads, the `.docx`
+> table re-index and `retitle`) is exactly how 5.5 GiB of data came to occupy
+> 38 GiB.
+>
+> The remedy is to rewrite the database into a fresh file, which is safe but needs
+> **exclusive** access — do not attempt it while another session holds the write
+> lock, and verify before swapping:
+>
+> ```sql
+> ATTACH 'search/index.compact.duckdb' AS compact;
+> COPY FROM DATABASE index TO compact;   -- ~4 min for this corpus
+> ```
+>
+> Load `vss`/`fts` on the connection first (`search.db.connect` does). The copy
+> **preserves the `hnsw_chunks` index and the `fts_main_chunks` schema**, so no
+> reindex is needed — but check both, compare every table's row count against the
+> original, and run a real `search`, a `graph --company` and a `graph --author`
+> query against the new file (via `SEARCH_DB=…`) before swapping. Keep the old
+> file until all of that passes. Doing this before the next `package-data.py pack`
+> avoids pushing ~33 GiB of nothing into the LFS repo.
 >
 > **Round of 2026-08-25 — RWTH Panikzettel, complete and indexed.**
 > All **36 sheets** of the [Panikzettel](https://htwr-aachen.de/panikzettel)
