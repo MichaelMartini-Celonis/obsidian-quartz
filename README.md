@@ -331,8 +331,61 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 | `scripts/.venv/bin/python scripts/tuberlin-dima.py all` | TU Berlin DIMA group publications (Volker Markl) — paginated TYPO3 list (~15 pages), direct self-hosted PDFs. |
 | `scripts/.venv/bin/python scripts/rxin-db-readings.py all` | Reynold Xin's `rxin/db-readings` — in-repo classic-DB PDFs **plus** a best-effort crawl of the linked "External Reading Lists" (Berkeley/Brown/Stanford/MIT/Wisconsin/CMU — a list of lists). |
 | `scripts/.venv/bin/python scripts/sigmod-arxiv.py all` / `icde-arxiv.py` / `cais-acm.py` / `tum-bpm.py` | SIGMOD (arXiv), ICDE 2021–2026 (arXiv + Unpaywall DOI fallback), ACM CAIS (Unpaywall OA), TUM BPM chair (author-version PDFs). |
+| `scripts/.venv/bin/python scripts/gap-audit.py <topic>` | Audit the corpus against a topic map (`scripts/gap-topics.json`) and write `imports/gap-audit-<topic>.{md,csv}`. Scores each concept on four axes — how often its probe terms are *mentioned*, how many documents treat it *substantively* (≥8 hits) or are *focused* on it (≥25), and how many holdings name it in their path — and prints the closest thing the library already has, so a "MISSING" verdict is checkable rather than asserted. |
+| `scripts/.venv/bin/python scripts/gap-cohorts.py` / `gap-simulation.py [slides\|gaps\|own]` | One-off harvests that close what an audit found. `gap-simulation.py` covers process simulation: `slides` resolves a reference list, `gaps` a curated cohort of foundational works, `own` scans `vdaalst.com/publications` by keyword instead of by enumerated title. Beyond the shared OA resolvers it indexes three self-hosting archives — his publications page, the **Winter Simulation Conference** proceedings (`informs-sim.org`, 10,477 papers) and **Ward Whitt's** page (452 PDFs) — which is where the DES-methodology and queueing-theory literature actually is. Resumable via `Inbox/gap-simulation/_gap-simulation.json`. |
 
 > ### ⚠️ Unfinished harvesting & indexing (as of 2026-08-25)
+>
+> **Latest round (2026-08-25) — process simulation: the foundations under the
+> process-mining papers.** Started from van der Aalst's 31-10-2025 *Simulation*
+> deck and its 26-item reference list, and turned into a gap-closing round on the
+> literature that deck argues *against*. The reference list itself was nearly free:
+> **10 of the 26** were already held, **11** were fetched, and the **5** that
+> resist are recorded in `SOURCES.md` → *Known-gated sources* — three are his
+> ExSpect-era work of 1988-91, which predates the PDF archive on his own
+> publications page (it begins at the 1992 thesis, `p7.pdf`).
+>
+> The interesting part was the audit (`gap-audit.py`, topic `process-simulation`).
+> The collection held the process-mining side of simulation well and almost none
+> of what it rests on: **conceptual modelling was absent outright**, the
+> **infinite-server / M/G/∞ model** — the thing the deck's recommendation 6
+> actually proposes using — returned zero documents, and Little's law, Kingman's
+> heavy-traffic approximation, Lindley's recursion, simulation output analysis,
+> V&V and random-variate generation were each a passing mention inside a paper
+> about something else. A deck claiming the M/M/1 sojourn-time formula is the
+> wrong model for a business process is not checkable against a library that holds
+> only the papers citing it.
+>
+> Closing it needed sources this repository had not used, because the works are
+> old, and old means either paywalled or self-hosted. Three archives carried the
+> round: the **Winter Simulation Conference** proceedings (`informs-sim.org`, open
+> since 1968 — a 10,477-paper title index, and for methodology the WSC paper is
+> usually the canonical statement while the journal version is the paywalled one),
+> **Ward Whitt's** publication page (452 PDFs, the whole of modern queueing
+> theory), and a keyword scan of van der Aalst's own page rather than an
+> enumerated title list, which is what turned up his 1995 *Handboek simulatie* —
+> the largest single omission, and the text behind everything the deck asserts
+> about abstraction level and steady state. Of **100** cohort targets **77** were
+> fetched; **107 documents** were imported in total and the index went
+> **13,137 → 13,245 documents / 823,239 chunks**.
+>
+> Three things worth recording. **The classics are genuinely walled**: Little
+> (1961, 2011), Kingman (1961), Lindley (1952) and Jackson (1963) have no open
+> copy anywhere the resolvers reach, and the author mirrors that used to serve
+> them are gone; Whitt's own reviews restate each result and are held instead, so
+> the concept is covered even though the paper is not. **The importer was filing
+> this material badly** and it took the round to notice: Whitt's papers say
+> "queues", never "queueing theory" or "stochastic", so ten of them fell through
+> every `CLASSIFICATION_RULES` entry into `Literature/Inbox/`, while Robinson's
+> conceptual-modelling tutorials were captured by the ontology rule. Two
+> rules now sit ahead of the topic rules — queueing theory next to queue mining,
+> DES methodology next to the BPS papers that inherit it — deliberately narrow,
+> since a marker as broad as "discrete-event simulation" would pull ordinary
+> process-mining papers out of their own folders; 29 files were relocated. And
+> **six of the fetched PDFs are image-only scans** (295 pages: Nance's history of
+> DES programming languages, Whitt's *L = W* review and heavy-traffic survey,
+> Massey & Whitt on infinite-server networks), which is why those concepts stayed
+> weak until the local OCR stage ran over them.
 >
 > **Latest round (2026-08-25) — the Databricks blog, indexed.** `import-blogs.py`
 > gained the **Databricks** source (**1,863** posts of its ~3,340, filtered by the
@@ -345,12 +398,29 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 > substitutes the blog index for a removed post, and filenames that depend on
 > which apostrophe a site serves; both are described under *`Blogs/<Company>/`*.
 >
-> Two things this round leaves open. The new posts have accurate titles (each
-> page's `<h1>`) but **no LLM `keywords`**, so they join the enrichment queue
-> below. And `search/index.duckdb` now stands at **41 GB** against the ~1.7 GB
-> recorded further up this file — far more than 1,891 markdown files can account
-> for, so it looks like accumulated free space rather than data and is worth a
-> `CHECKPOINT`/compaction check before the next `package-data.py pack`.
+> Enrichment of the round is **done** — one `scripts/enrich-loop.sh` pass took
+> 1,961 documents (the 1,889 new posts plus the IDSA/Networks/Panikzettel
+> leftovers) with **0 failures** in ~87 min, so every document in the corpus now
+> carries LLM `title`/`authors`/`keywords`.
+>
+> **`search/index.duckdb` is 86% empty space**, and it is worth knowing how to
+> tell. The file had grown to **38.4 GiB** against the ~1.7 GB recorded further up
+> this page, which is far more than 1,891 markdown files can explain. `PRAGMA
+> database_size` settles what kind of growth it is: of **157,576** blocks (256 KiB
+> each) only **22,676 are used** — **5.5 GiB of data against 32.9 GiB of free
+> blocks** — and `chunks` has **zero** rows orphaned from `documents`. So this is
+> not runaway data or a leak of dead rows; it is a file that never shrank. DuckDB
+> reuses free blocks but does not truncate, and this index has been rewritten
+> repeatedly in place (OCR re-reads, the `.docx` table re-index, `retitle`, and
+> every `enrich` promote), so the high-water mark stuck.
+>
+> `CHECKPOINT` will not recover it — that flushes the WAL, which is already
+> `0 bytes`. Reclaiming the space means rewriting the database into a fresh file
+> (`ATTACH 'new.duckdb'; COPY FROM DATABASE index TO new;`), then swapping it in
+> once the row counts match and keeping the old file until they do. That needs
+> **exclusive** access, so it must not be attempted while another session holds the
+> write lock — worth doing before the next `package-data.py pack`, which would
+> otherwise push ~33 GiB of nothing into the LFS repo.
 >
 > **Round of 2026-08-25 — RWTH Panikzettel, complete and indexed.**
 > All **36 sheets** of the [Panikzettel](https://htwr-aachen.de/panikzettel)
