@@ -26,6 +26,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import requests
 from lxml import html as H
@@ -62,6 +63,7 @@ class BlogSource:
     key: str
     company: str
     sitemap: str = ""          # sitemap.xml URL (preferred discovery)
+    sitemaps: list[str] = field(default_factory=list)  # …or several (site split its blog)
     index_url: str = ""        # fallback: an HTML listing page to scrape links from
     keep_re: str = ""          # a discovered URL must match this to be an article
     drop_url_re: str = ""      # …and must NOT match this
@@ -70,6 +72,8 @@ class BlogSource:
     title_xpath: str = ""      # optional title override (sites whose first <h1> is a site header)
     min_chars: int = 500
     extra_drop: str = ""       # source-specific title-drop regex
+    category_xpath: str = ""   # xpath yielding the post's own section/category labels
+    drop_category_re: str = ""  # …drop the post if any of them matches
 
 
 SOURCES: list[BlogSource] = [
@@ -117,6 +121,26 @@ SOURCES: list[BlogSource] = [
         base="https://bauplanlabs.com",
     ),
     BlogSource(
+        key="cedardb", company="CedarDB",
+        sitemap="https://cedardb.com/sitemap.xml",
+        keep_re=r"^https://cedardb\.com/blog/[^/]+/$",
+        base="https://cedardb.com",
+    ),
+    BlogSource(
+        key="typedb", company="TypeDB",
+        sitemap="https://typedb.com/sitemap-main.xml",
+        keep_re=r"^https://typedb\.com/blog/[^/]+/?$",
+        base="https://typedb.com",
+    ),
+    # Kuzu Inc. wound down and kuzudb.com no longer resolves; the blog survives only
+    # as this GitHub Pages mirror of the site, which is now its citable home.
+    BlogSource(
+        key="kuzu", company="Kùzu",
+        sitemap="https://kuzudb.github.io/blog/sitemap-0.xml",
+        keep_re=r"^https://kuzudb\.github\.io/blog/post/[^/]+/?$",
+        base="https://kuzudb.github.io",
+    ),
+    BlogSource(
         key="anchormodeling", company="Anchor Modeling",
         sitemap="https://www.anchormodeling.com/wp-sitemap-posts-post-1.xml",
         keep_re=r"^https://www\.anchormodeling\.com/[^/]+/$",
@@ -127,6 +151,34 @@ SOURCES: list[BlogSource] = [
         index_url="https://www.cs.cmu.edu/~pavlo/blog/index.html",
         keep_re=r"^https://www\.cs\.cmu\.edu/~pavlo/blog/\d{4}/\d{2}/[^/]+\.html$",
         base="https://www.cs.cmu.edu", title_xpath="//title/text()",
+    ),
+    # Databricks runs the largest blog of any source here (~3,300 posts across the
+    # current site and the 2013-2023 legacy archive) and most of it is vertical
+    # marketing, exec thought-leadership or SEO glossary pages. Each post names its
+    # own section in a breadcrumb, which is a far better filter than any title
+    # regex: `engineering`, `platform` and `databricks-ai` carry the lakehouse /
+    # Lakebase / Spark / Delta engineering writing, the four dropped sections carry
+    # customer stories, partner PR, "What is X?" definitions and CxO essays.
+    BlogSource(
+        key="databricks", company="Databricks",
+        sitemaps=["https://www.databricks.com/en-blog-assets/sitemap/sitemap-0.xml",
+                  "https://www.databricks.com/blog-legacy-assets/sitemap/sitemap-0.xml"],
+        keep_re=r"^https://www\.databricks\.com/blog/(?:\d{4}/\d{2}/\d{2}/[^/]+|[^/]+)$",
+        drop_url_re=r"/blog/(category|author|archive)/",
+        base="https://www.databricks.com",
+        category_xpath='//nav[contains(@class,"blog-detail-breadcrumb")]'
+                       '//a[contains(@href,"/blog/category/")]/@href',
+        drop_category_re=r"/category/(company|industries|data-strategy|data-ai-foundations)\b",
+        # residual PR inside the kept sections: conference, certification and
+        # analyst/partner/people announcements, plus the recurring non-technical
+        # series (Application Spotlight, the bi-weekly link digest, eBook launches)
+        extra_drop=r"summit|keynote|re:invent|certifi|named a leader|partner awards|"
+                   r"brickbuilder|brickster|^welcoming\b|databricks ventures|"
+                   r"university alliance|student fellows|strategic partnership|"
+                   r"webinar|\bmooc\b|best of databricks blog|most read posts|"
+                   r"application spotlight|partners with|partnership with|"
+                   r"(selects|chooses) databricks|\bebooks?\b|bi-weekly.*digest|"
+                   r"indemnity|survey \d{4} results|spark survey",
     ),
     BlogSource(
         key="senzing", company="Senzing",
@@ -144,21 +196,44 @@ def _session() -> requests.Session:
 
 
 def _fetch_doc(session: requests.Session, url: str):
+    """Fetch and parse a page, returning the document and the URL it resolved to."""
     r = session.get(url, timeout=TIMEOUT)
     r.raise_for_status()
-    return H.fromstring(r.content)  # bytes -> lxml honors meta charset
+    return H.fromstring(r.content), r.url  # bytes -> lxml honors meta charset
+
+
+def _redirected_off_article(url: str, final_url: str) -> bool:
+    """Did a redirect walk *up* out of the article, e.g. onto the blog index?
+
+    A site that removes a post may soft-404 it onto its listing page rather than
+    returning 404. The result parses fine and is titled after whatever post is
+    currently featured, so nothing downstream notices — the post is silently
+    replaced by a copy of the index. Landing on an *ancestor* path is what
+    identifies that, and it is the only redirect worth refusing: adding a
+    trailing slash, dropping a `.html` suffix and renaming a slug are all routine
+    and all keep the article.
+    """
+    def norm(u: str) -> str:
+        return re.sub(r"\.(html?|php|aspx?)$", "", urlsplit(u).path.rstrip("/"))
+
+    here, there = norm(url), norm(final_url)
+    if here == there:
+        return False
+    return there in ("", "/") or here.startswith(there + "/")
 
 
 def discover(session: requests.Session, src: BlogSource) -> list[str]:
     keep = re.compile(src.keep_re) if src.keep_re else None
     drop = re.compile(src.drop_url_re) if src.drop_url_re else None
     urls: list[str] = []
-    if src.sitemap:
-        r = session.get(src.sitemap, timeout=TIMEOUT)
-        r.raise_for_status()
-        urls = re.findall(r"<loc>\s*([^<]+?)\s*</loc>", r.text)
+    sitemaps = src.sitemaps or ([src.sitemap] if src.sitemap else [])
+    if sitemaps:
+        for sm in sitemaps:
+            r = session.get(sm, timeout=TIMEOUT)
+            r.raise_for_status()
+            urls += re.findall(r"<loc>\s*([^<]+?)\s*</loc>", r.text)
     elif src.index_url:
-        doc = _fetch_doc(session, src.index_url)
+        doc, _ = _fetch_doc(session, src.index_url)
         hrefs = doc.xpath("//a[@href]")
         urls = [a.get("href") for a in hrefs]
     out, seen = [], set()
@@ -200,6 +275,16 @@ def _pick_content(doc):
     return body[0] if body else doc
 
 
+def _categories_of(doc, category_xpath: str) -> list[str]:
+    out = []
+    for node in doc.xpath(category_xpath):
+        raw = node if isinstance(node, str) else node.text_content()
+        raw = re.sub(r"\s+", " ", raw).strip()
+        if raw and raw not in out:
+            out.append(raw)
+    return out
+
+
 def _title_of(doc, title_xpath: str = "") -> str:
     if title_xpath:
         for node in doc.xpath(title_xpath):
@@ -222,32 +307,56 @@ def slugify(text: str, max_len: int = 150) -> str:
     return (text[:max_len].rsplit(" ", 1)[0] if len(text) > max_len else text) or "untitled"
 
 
+def dedup_key(stem: str) -> str:
+    """Collapse a filename to what identifies the *post* rather than its spelling.
+
+    Whether a title reaches us as ``Shouldn't`` or ``Shouldn’t`` is a property of
+    the site's typography on the day it was fetched, not of the post — but
+    ``slugify`` keeps the ASCII apostrophe and drops the typographic one, so the
+    same article can land under two names and be imported twice. Comparing on
+    letters and digits alone makes the skip-if-held check immune to that (and to
+    hyphen, dash and ampersand churn) without renaming what is already filed.
+    """
+    return re.sub(r"[^a-z0-9]", "", stem.lower())
+
+
 def import_source(session, src: BlogSource, limit, delay, dry_run) -> dict:
     dest_dir = BLOGS_DIR / src.company
+    held = {dedup_key(p.stem) for p in dest_dir.glob("*.md")} if dest_dir.is_dir() else set()
     urls = discover(session, src)
     print(f"[{src.key}] discovered {len(urls)} candidate article URLs "
           f"-> {dest_dir.relative_to(DOCS_ROOT)}")
     extra = re.compile(src.extra_drop, re.I) if src.extra_drop else None
+    drop_cat = re.compile(src.drop_category_re, re.I) if src.drop_category_re else None
     kept, dropped, skipped = [], [], []
     n = 0
     for url in urls:
         if limit and n >= limit:
             break
         try:
-            doc = _fetch_doc(session, url)
+            doc, final_url = _fetch_doc(session, url)
         except Exception as exc:
             dropped.append((url, f"fetch-fail {exc}"))
+            continue
+        if _redirected_off_article(url, final_url):
+            dropped.append((url, f"redirected off the article -> {final_url}"))
             continue
         title = _title_of(doc, src.title_xpath)
         if not title:
             dropped.append((url, "no-title"))
             continue
+        if drop_cat and src.category_xpath:
+            cats = _categories_of(doc, src.category_xpath)
+            hit = [c for c in cats if drop_cat.search(c)]
+            if hit:
+                dropped.append((title, f"category {'/'.join(hit)}"))
+                continue
         slug = url.rstrip("/").rsplit("/", 1)[-1]
         if DROP_RE.search(title) or DROP_RE.search(slug) or (extra and extra.search(title)):
             dropped.append((title, "changelog/release/PR"))
             continue
         out = dest_dir / f"{slugify(title)}.md"
-        if out.exists():
+        if dedup_key(out.stem) in held:
             skipped.append(title)
             n += 1
             continue
@@ -259,6 +368,7 @@ def import_source(session, src: BlogSource, limit, delay, dry_run) -> dict:
         header = (f"# {title}\n\n"
                   f"Source: {src.company} blog \u2014 {url}\n\n---\n\n")
         n += 1
+        held.add(dedup_key(out.stem))
         if dry_run:
             kept.append(title + "  [dry-run]")
             continue

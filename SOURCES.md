@@ -133,7 +133,14 @@ PostgreSQL · GoogleSQL (ZetaSQL) · Apache DataFusion · CedarDB · DuckDB ·
 RelationalAI (docs + templates/guides) · ClickHouse · Gel · Malloy ·
 Palantir Foundry (Ontology, Quiver/Insight/Vertex, Automate, Machinery) · Bauplan ·
 Snowflake · Databricks (platform docs + **Databricks Labs Ontos**) ·
-Apache Flink · Oracle (SQL) · SAP HANA (SQL).
+Apache Flink · Oracle (SQL) · SAP HANA (SQL) ·
+**Datadog** (Trace Explorer, Trace Queries, trace pipeline/retention, DDSQL, log
+management, events).
+
+> Datadog is the reference system the Context Model's event handling is argued
+> from, so its *query* surfaces are the part held. Its `ddsql_reference/` tree is
+> 2,100+ generated per-dataset schema stubs under `data_directory/`, which the
+> source drops so the language reference is not buried.
 
 > SAP LeanIX docs are a JS SPA and could not be fetched — ⛔.
 
@@ -169,19 +176,87 @@ Apache Flink · Oracle (SQL) · SAP HANA (SQL).
 Imported to `Literature/Blogs/<Company>/` via `scripts/import-blogs.py`
 (changelogs/release/PR posts dropped). ✅
 
-MotherDuck · DuckDB · RelationalAI · Firebolt · Gel · Malloy · Bauplan ·
-Anchor Modeling · CedarDB · Kùzu · TypeDB · **Andy Pavlo (CMU)** 🔄.
+**Databricks** · MotherDuck · DuckDB · RelationalAI · Firebolt · Gel · Malloy ·
+Bauplan · Anchor Modeling · CedarDB · Kùzu · TypeDB · **Andy Pavlo (CMU)** 🔄.
+
+Two of these needed more than a sitemap and a URL pattern:
+
+- **Databricks** is by far the largest (~3,340 posts across the current site and
+  the 2013–2023 legacy archive, read as two sitemaps) and most of it is vertical
+  marketing, CxO thought-leadership or SEO glossary pages. Each post names its
+  own section in a breadcrumb, so the source filters on **that** rather than on
+  title words: `engineering`, `platform` and `databricks-ai` are kept, and
+  `industries`, `company`, `data-strategy` and `data-ai-foundations` are dropped.
+  See `README.md` → *`Blogs/<Company>/`* for why the structural signal beats a
+  title regex here.
+- **Kùzu** — `kuzudb.com` no longer resolves (Kuzu Inc. wound down), so the
+  registry points at the surviving GitHub Pages mirror,
+  [`kuzudb.github.io/blog`](https://kuzudb.github.io/blog/). Its 40 posts are the
+  18 already held plus 22 release notes, i.e. the collection is complete; the
+  entry exists so the source is citable and re-runnable rather than orphaned.
+
+CedarDB, Kùzu and TypeDB were listed here while **missing from the importer's
+registry**, so for a while they could not be re-run — restoring the three entries
+immediately turned up 16 unheld posts. A source that is documented but not
+registered looks maintained and is not, which is worth checking for.
 
 ---
 
-## 5. Source-system knowledge & specifications
+## 5. Source-system knowledge, specifications & analyst reports
 
 
 | Collection                  | Sources                                                                    | Status |
 | --------------------------- | -------------------------------------------------------------------------- | ------ |
 | `Source Systems Knowledge/` | Oracle Fusion interface tables · SAP data-dictionary tables                | ✅      |
-| `Specifications/`           | OMG (BPMN/CMMN/DMN) · W3C (RDF/OWL) · OntoUML · BFO · Semantic Arts (gist) · HQDM / MagmaCore · Industrial Ontologies Foundry · **Bitol** (ODCS v3.1.0, ODPS v1.0.0) | ✅      |
+| `Specifications/`           | OMG (BPMN/CMMN/DMN) · W3C (RDF/OWL) · OntoUML · BFO · Semantic Arts (gist) · HQDM / MagmaCore · Industrial Ontologies Foundry · **Bitol** (ODCS v3.1.0, ODPS v1.0.0) · **OpenTelemetry** (specification + semantic conventions) · **IDSA** (19 position/white papers + IDS-RAM 4.0 + Dataspace Protocol — see §5b) | ✅      |
+| `Analyst Reports/`          | **Gartner** (11: Magic Quadrants for Process Intelligence, Process Mining, DTO, Decision Intelligence, BOAT; Critical Capabilities; Market Guides) · **Everest Group** (1: Process Mining PEAK Matrix 2023) | ✅      |
 
+Acquired manually rather than harvested — these are licensed, per-seat documents
+with no scrapeable source. Drop new ones in `Inbox/` and the importer files them
+by publisher fingerprint (see `README.md` → *`Analyst Reports/<Firm>/`*).
+Forrester · IDC · HFS · ISG · NelsonHall rules exist but have no documents yet.
+
+
+## 5b. Data spaces — IDSA (International Data Spaces Association)
+
+The standards-body corpus on **cross-company data sharing**: how independent
+organisations exchange data across an organisational boundary while each keeps
+control of its own (data sovereignty, usage control, a shared semantic model,
+participant onboarding, certification, governance). Pulled in as the external
+prior art for the **Celonis Networks** design documents that arrived in
+`Literature/Celonis Internal/` — Networks is a hub-and-spoke platform for
+sharing *process outcomes* between business partners under a common taxonomy and
+a data-minimisation principle, which is the same problem IDSA has been
+specifying since 2016. All of it is CC-BY.
+
+
+| Source                                                        | What                                                                                                                                                                                                                                            | How                                                                | Status |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------ |
+| `internationaldataspaces.org/publications/papers/`            | **19 position & white papers, 2021–2026** — Usage Control (v3.0) · Data Sovereignty (manufacturing requirements + critical success factors) · Governance for Data Space Instances · Semantic Interoperability (2024-04 and v1.1) · Data Spaces Landscape / Standardization Landscape (v1.0 and v2.0) · Business Models · Observability · Reference Testbed · IDS ↔ Industry 4.0 · the DGA & data intermediaries · the EU AI Act · Data Spaces and AI (agentic participation) · the **IDSA Rulebook 2026** white paper | `scripts/idsa-papers.py` → `Inbox/idsa/` (direct PDFs)              | ✅      |
+| `github.com/…/IDS-RAM_4_0`                                    | **IDS Reference Architecture Model 4.0** — roles, the connector, the five layers (business / functional / process / information / system), certification. The papers page links the GitBook rather than offering a PDF                            | `import-docs.py --only ids-ram` (git → 92 pages)                    | ✅      |
+| `github.com/…/ids-specification`                              | **Dataspace Protocol** — catalog, ODRL contract negotiation, transfer process, plus the JSON Schemas, message examples and SHACL shapes an implementation is checked against                                                                     | `import-docs.py --only dataspace-protocol` (git → 227 units)        | ✅      |
+
+
+Two things are worth knowing before re-running the harvester:
+
+- **The edition lives on the page, not in the PDF.** Several papers exist in two
+  editions under an identical title (*Semantic Interoperability*,
+  *Standardization Landscape*), and only the listing's "Version 1.1 | November
+  2025" subtitle distinguishes them. So the harvester parses the listing for
+  title + version + date and writes them into the filename
+  (`IDSA - <Title> (v1.1, 2025-11).pdf`), following the `Analyst Reports/`
+  convention for dated snapshots from one publisher.
+- **`IndexDedup` must not gate the download here.** The shared title check (§1b)
+  would match the newer edition against the older one already in the index and
+  skip it. Skipping is decided by the exact versioned filename instead; the
+  title-match result is recorded in `Inbox/idsa/_idsa-report.csv` for
+  information only.
+
+Routing is by publisher fingerprint, like the analyst reports: the
+`Specifications/IDSA` rule in `import-downloads.py` keys on the cover boilerplate
+of IDSA's own template (*"Position Paper of the IDS Association"*, printed on
+every edition), so an academic paper *about* IDS by an IDSA-affiliated author is
+not captured by it.
 
 ---
 
@@ -207,7 +282,7 @@ Process Mining Summer School, …).
 
 | Source                                   | What                                                                                                                                                                                                                          | Status |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `Literature/Celonis Internal/`           | Curated internal docs (PIG-SL / PQL / Saola / CCMM / EMS 2.0 slide decks & specs). Routed by the internal-marker detector in `scripts/import-downloads.py`; office files (`.docx/.pptx/.xlsx`) treated as internal by suffix. | ✅      |
+| `Literature/Celonis Internal/`           | Curated internal docs (PIG-SL / PQL / Saola / CCMM / EMS 2.0 slide decks & specs), plus the **Networks** set — product memo, technical handover, macro-architecture review, the PnE high-level backend design, CDN architecture and infrastructure responsibilities (its external counterpart is the IDSA corpus in §5b). Routed by the internal-marker detector in `scripts/import-downloads.py`; office files (`.docx/.pptx/.xlsx`) treated as internal by suffix. | ✅      |
 | `reference/celonis/`                     | Celonis checkouts — Context Model wiki (`pig-sl`), Studio Platform HQ, PM Solutions, PMI LaTeX, OCDM prototyping env. Reference only.                                                                                          | ✅      |
 | `reference/bitol/`                       | ODCS + ODPS standards. Also the *source* of the two `Specifications/Bitol/` collections (§5) — the doc sites are mkdocs builds of these repos.                                                                                 | ✅      |
 | `reference/databrickslabs/ontos/`        | Ontos (branch `development`). Also the source of the Ontos collection (§3); the repo's internal churn (`docs/notes/`, `.planning/`, testing plans) is excluded from the import.                                               | ✅      |
@@ -220,6 +295,57 @@ Process Mining Summer School, …).
 `Literature/Books/` and `Literature/Reference and Textbooks/` — curated reference
 works; `Specifications/OMG/` also holds the OMG DMN 1.5 spec pulled during the
 seed-catalog gap-fill. ✅
+
+## 8b. Course notes — RWTH Aachen Panikzettel
+
+The [Panikzettel](https://htwr-aachen.de/panikzettel) are student-written
+distillations of RWTH Aachen computer-science lectures — a whole course in two to
+six dense pages, CC-BY-SA, LaTeX sources at
+[htwr-aachen/panikzettel](https://github.com/htwr-aachen/panikzettel). The site
+is a maintained fork of the original, now-unmaintained
+[panikzettel.philworld.de](https://panikzettel.philworld.de) collection.
+
+They are here for their density rather than their novelty: *Berechenbarkeit und
+Komplexität*, *Formale Systeme, Automaten und Prozesse*, *Datenbanken und
+Informationssysteme* and *Mathematische Logik* state the definitions and theorems
+the process-mining and database corpus assumes without restating, in a form short
+enough to retrieve whole rather than as a chunk.
+
+
+| Source                              | What                                                                                                                                                                                       | How                                                                       | Status |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------ |
+| `api.htwr-aachen.de/api/panikzettel/` | **36 sheets** — 14 compulsory subjects (analysis, linear algebra, data structures & algorithms, automata, computability & complexity, databases, logic, stochastics, software engineering, OS, networks, IT security, ML) · 16 compulsory electives (advanced automata theory, efficient algorithms, static program analysis, functional programming, probabilistic programming, HPC, social networks, AI, computer graphics, algorithmic foundations of data science …) · 5 application-area subjects (incl. **Business Process Intelligence**, operations research, decision theory) · the Meta-Panikzettel | `scripts/panikzettel.py all` → `Inbox/panikzettel/` (direct PDFs)           | ✅      |
+
+
+Two notes for a re-run:
+
+- **The metadata is in the API, not the page.** `htwr-aachen.de/panikzettel` is a
+  Next.js app that renders its list client-side from
+  `api.htwr-aachen.de/api/panikzettel/`, so the harvester reads the JSON. That is
+  a feature, not a workaround: the course name, the curriculum slot and the
+  **revision date** live only there, and the date is what the filename needs
+  (`Panikzettel - <Course> (<YYYY-MM-DD>).pdf`).
+
+  Taking the date from the *document* instead would have been the obvious move
+  and is wrong. 27 of the 36 sheets print a date that matches the API exactly,
+  but seven — FoSAP, Berechenbarkeit und Komplexität, Datenbanken und
+  Informationssysteme, Stochastik, Datenkommunikation, Betriebssysteme,
+  Maschinengestaltung — all print **30. Juli 2026**, which is not seven
+  simultaneous revisions but `\today` at the site's last build. Those are exactly
+  the sheets that have not been touched in years, so the one date a reader would
+  most want is the one the PDF cannot supply, and it fails *silently* by looking
+  freshly current.
+- **`IndexDedup` must not gate the download**, for the same reason as IDSA (§5b):
+  a new revision of a sheet shares its title with the copy already held. Skipping
+  is decided by the exact dated filename; the title match is recorded in
+  `Inbox/panikzettel/_panikzettel-report.csv` for information only.
+
+Routing is by the collection's own name — the `Course Notes/RWTH Aachen
+Panikzettel` rule in `import-downloads.py` keys on "panikzettel", which is printed
+on every sheet and is the filename prefix the harvester writes. It sits with the
+other publisher-keyed rules, *before* the topic rules, because otherwise the
+database sheet and the logic sheet would classify on their subject vocabulary and
+the collection would arrive scattered.
 
 ---
 
@@ -237,7 +363,8 @@ scrape page → fetch-papers.py (resumable, rate-limited)
 Tooling registry lives in `scripts/` (see `README.md` → *Tooling*):
 `import-docs.py` (docs), `import-blogs.py` (blogs), `import-youtube.py`
 (transcripts), `fetch-papers.py` (paper PDFs), `dedup-inbox.py` (title dedup),
-`import-downloads.py` (Inbox importer).
+`import-downloads.py` (Inbox importer — `--only <subfolder>` files a single
+harvester's output without sweeping in the rest of the drop zone).
 
 ## Known-gated sources (need manual drop into `Inbox/`)
 

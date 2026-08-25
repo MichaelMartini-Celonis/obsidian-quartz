@@ -8,6 +8,7 @@
 reference/
 
 # Source document libraries — large binaries, managed via the Inbox importer, not git.
+# (versioned instead in the companion Git LFS repo, see scripts/package-data.py)
 Literature/
 Inbox/*
 !Inbox/README.md

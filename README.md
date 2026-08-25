@@ -53,7 +53,12 @@ the file into the right `Literature/` subfolder, and de-duplicates against the e
 
 ```bash
 cd ~/docs && scripts/.venv/bin/python scripts/import-downloads.py
+cd ~/docs && scripts/.venv/bin/python scripts/import-downloads.py --only panikzettel
 ```
+
+The second form imports **one Inbox subfolder** and leaves the rest of the drop zone alone, which is
+what a harvester run wants: it writes into `Inbox/<source>/`, and filing its output should not also
+sweep in whatever else is sitting in the Inbox waiting to be looked at.
 
 This Inbox exists specifically so material never has to be pulled from `~/Downloads` (which is
 subject to path-access restrictions — see *Agent notes* below).
@@ -104,12 +109,145 @@ Beyond the research corpus, the library also holds **non-research tooling** mate
 company/tool blog posts under `Blogs/<Company>/`, third-party product documentation under
 `Tool & Competitor Documentation/<Company>/` (SQL dialects and data-platform foundations),
 **source-system knowledge** under `Source Systems Knowledge/<Company>/` (ERP/source-system table
-and schema references, e.g. SAP data-dictionary tables and Oracle Fusion interface tables), and
+and schema references, e.g. SAP data-dictionary tables and Oracle Fusion interface tables),
 **specifications** under `Specifications/<Org>/` (standards & ontologies — e.g. OMG BPMN/CMMN/DMN,
-W3C RDF & OWL, OntoUML, BFO, gist). These are grouped by company/org so the search engine's
+W3C RDF & OWL, OntoUML, BFO, gist, IDSA), and **analyst reports** under `Analyst Reports/<Firm>/`
+(industry-analyst market assessments — Gartner Magic Quadrants, Critical Capabilities and Market
+Guides; Everest Group PEAK Matrix; and the Forrester/IDC/HFS/ISG/NelsonHall equivalents the
+importer also recognises). These are grouped by company/org so the search engine's
 knowledge graph can attach a `Company` node (`search graph --company` lists them) — a vendor's
 blogs, dialect docs, source-system tables and specifications collapse onto the same node.
 See `scripts/import-blogs.py` and `scripts/import-docs.py`.
+
+#### `Analyst Reports/<Firm>/` — industry-analyst market assessments
+Analyst reports are filed by **publisher, not by subject**, and this is the one collection where
+that is a deliberate departure from how the rest of `Literature/` works. A *Magic Quadrant for
+Process Mining Platforms* covers discovery, conformance checking and architecture in equal measure,
+so subject-matter classification matches it on whichever vocabulary appears first on page 1 and
+scatters a single firm's output across the library — which is exactly what had happened before this
+folder existed. Grouping by firm also gives the knowledge graph a `Company` node per analyst house,
+so Gartner's coverage is a single queryable entity.
+
+Naming keeps the library's `Author et al. - Title` prefix (the analysts *are* the authors, and the
+graph builds `Author` nodes from it) and appends the year and the firm's document ID:
+
+```
+Analyst Reports/Gartner/Srivastava et al. - Magic Quadrant for Process Mining Platforms (2025, G00816659).pdf
+Analyst Reports/Everest Group/Everest Group - Process Mining Products PEAK Matrix Assessment 2023 - Focus on Celonis (2023).pdf
+```
+
+The year and ID matter because these are **dated market snapshots** — there is a new Magic Quadrant
+for the same market most years, and the document ID (`G00…`) is how Gartner itself cites an edition.
+Where the same report is held in two renditions (the full PDF export and the shorter "Gartner
+Reprint" web version), the second carries a `, reprint` suffix rather than being silently dropped —
+the page counts differ, so they are not byte-equivalent duplicates.
+
+New reports route themselves: `CLASSIFICATION_RULES` in `scripts/import-downloads.py` puts the
+analyst-firm rules **first**, keyed on publisher fingerprints (imprint lines like `Gartner, Inc.`,
+reprint boilerplate, the `- ID G00…` format) rather than topic words, so they cannot capture a
+research paper that merely discusses the analyst market.
+
+#### `Specifications/IDSA/` — data spaces (position papers + the normative model)
+The [International Data Spaces Association](https://internationaldataspaces.org/publications/papers/)
+corpus is the second collection filed by **publisher rather than subject**, and for the same reason:
+a position paper on *Semantic Interoperability in Data Spaces* argues ontologies, data models,
+governance and usage control at once, so the topic rules would split one standards body across four
+folders. It is held in two halves that answer to each other — 19 position/white papers
+(`scripts/idsa-papers.py`) and the normative artifacts they resolve to, IDS-RAM 4.0 and the
+Dataspace Protocol, which are GitBook sites generated from git and so come in through
+`scripts/import-docs.py` (keys `ids-ram`, `dataspace-protocol`) as consolidated markdown.
+
+Filenames carry the **edition**, because the version is the only thing distinguishing several of
+them:
+
+```
+Specifications/IDSA/IDSA - Semantic Interoperability in Data Spaces (v1.1, 2025-11).pdf
+Specifications/IDSA/IDSA - Semantic Interoperability in Data Spaces (2024-04).pdf
+Specifications/IDSA/IDSA - Usage Control in the International Data Spaces (v3.0, 2021).pdf
+```
+
+That version and date live only in the *listing*, never in the PDF's front matter, which is why the
+harvester parses the page rather than the documents — and why it does not use the usual
+`paperfetch.IndexDedup` title check to decide what to skip: two editions share a title, so a title
+match silently drops the newer one. It compares the exact versioned filename against what is
+already held instead.
+
+Why this material is here: it is the standards-body treatment of the problem **Celonis Networks**
+addresses — letting independent companies share process outcomes across an organisational boundary
+without either side losing control of the data. `Usage Control`, `Governance for Data Space
+Instances` and the Dataspace Protocol's contract negotiation are the prior art for Networks'
+sharing model, and `Semantic Interoperability` for its common-taxonomy principle. The Networks
+design documents themselves are in `Literature/Celonis Internal/`.
+
+#### `Course Notes/RWTH Aachen Panikzettel/` — student course cheat sheets
+The [Panikzettel](https://htwr-aachen.de/panikzettel) ("panic sheets") are student-written
+distillations of RWTH Aachen computer-science lectures — a whole course in two to six dense pages,
+CC-BY-SA. They are held as a third collection filed by **publisher rather than subject**, for the
+now-familiar reason: 36 sheets covering automata, complexity, databases, logic, stochastics,
+software engineering and machine learning would scatter across half the library, and two pages of
+exam notes classified on their vocabulary alone read as a very thin research paper.
+
+What earns them a place is density. *Berechenbarkeit und Komplexität*, *Formale Systeme, Automaten
+und Prozesse*, *Datenbanken und Informationssysteme* and *Mathematische Logik* state the
+definitions and theorems the process-mining and database literature here assumes without
+restating — and they are short enough to retrieve whole rather than as a chunk.
+
+```
+Course Notes/RWTH Aachen Panikzettel/Panikzettel - Datenbanken und Informationssysteme (2020-07-19).pdf
+Course Notes/RWTH Aachen Panikzettel/Panikzettel - Elements of Machine Learning and Data Science (EN) (2024-08-01).pdf
+```
+
+The filename carries the **revision date** for the same reason the analyst reports carry their
+year: these are living documents re-cut as a course changes, and the machine-learning sheet exists
+in a German and an English edition that a title alone cannot tell apart. That date comes from the
+API rather than from the document, because seven of the sheets are typeset with `\today` and so
+print the site's last *build* date (30 July 2026) instead of their own — silently, and precisely on
+the sheets that have not been revised in years. Titles are transliterated
+(`ä`→`ae`, `ß`→`ss`) before being written, because the importer's slugifier folds by decomposition
+and would otherwise turn *Einführung* into *Einfuhrung* — leaving the harvester unable to recognise
+its own output on the next run.
+
+#### `Blogs/<Company>/` — vendor and practitioner blogs
+Harvested by `scripts/import-blogs.py` from a registry of sources, one markdown file per post.
+The shared filter drops the posts a knowledge base gains nothing from — changelogs, release notes,
+roadmaps, funding and hiring announcements — which is enough for a focused engineering blog like
+CedarDB's or DuckDB's, where nearly every post is substantive.
+
+**Databricks is the case that broke that assumption**, and the fix is worth recording because it
+generalises. Its blog is ~3,340 posts (the current site plus a 2013–2023 legacy archive, which is why
+a source may now list **several sitemaps**), and only about half is engineering writing; the rest is
+customer stories, partner PR, CxO essays and SEO glossary pages like *What is a DNA Sequence?*. Those
+cannot be separated by title words: *Diving Into Delta Lake: Unpacking The Transaction Log* and
+*Exciting Keynotes at Spark + AI Summit Europe 2019* are indistinguishable to any regex short of one
+that also throws away the good posts. But every post **names its own section in a breadcrumb**, which is
+the site's own judgement about what the post is, so `BlogSource` grew `category_xpath` /
+`drop_category_re` and the source keeps `engineering`, `platform` and `databricks-ai` while dropping
+`industries`, `company`, `data-strategy` and `data-ai-foundations`. That one structural test removes
+**1,248 of 3,342** posts; a title regex is then only needed for the residue *inside* the kept
+sections — conference and certification posts, analyst/partner announcements, and recurring
+non-technical series (*Application Spotlight*, the bi-weekly link digest, eBook launches) — taking the
+import to **~1,870 posts**. The lesson is the same one the `Analyst Reports/` folder teaches from the
+other direction: when a publisher already classifies its own output, use that classification instead
+of inferring one from the text.
+
+A source can also outlive its domain. **Kùzu**'s `kuzudb.com` stopped resolving after Kuzu Inc. wound
+down, so the registry points at the GitHub Pages mirror
+([`kuzudb.github.io/blog`](https://kuzudb.github.io/blog/)) — the posts already in `Literature/` were
+for a while the only copy, and an unregistered source is one nobody can re-run or cite.
+
+Two failure modes found while adding these are worth knowing about, because both produce results that
+*look* correct:
+
+- **A removed post can soft-404 onto the blog index.** Databricks answers a dead legacy URL with a
+  redirect to `/blog`, which parses cleanly and takes its `<h1>` from whichever post is featured that
+  day — so the post is silently replaced by a copy of the listing page, filed under someone else's
+  title. The importer now refuses a redirect that lands on an **ancestor** path, which is what
+  distinguishes this from the routine redirects that must still be followed (adding a trailing slash,
+  dropping `.html`, renaming a slug).
+- **Typography decides filenames.** `slugify` keeps an ASCII `'` but drops a typographic `’`, so a
+  site that changes its quote style re-imports the same post under a second name. The skip-if-held
+  check therefore compares on letters and digits only (`dedup_key`), which caught 5 such re-imports
+  and does not require renaming the 128 files already spelled either way.
 
 ### `reference/celonis/` — independent Celonis checkouts
 Independent local checkouts of Celonis repositories, grouped under the gitignored
@@ -156,7 +294,7 @@ Python tooling lives in `scripts/` (virtualenv at `scripts/.venv/`):
 |---|---|
 | `scripts/.venv/bin/python scripts/import-downloads.py` | Import + classify + rename files dropped in `Inbox/` into `Literature/` (de-duplicates against the library). |
 | `scripts/.venv/bin/python scripts/import-web-book.py` | Import free online HTML books (e.g. the Google SRE books) into `Literature/` as markdown (`--list` / `--only KEY`). |
-| `scripts/.venv/bin/python scripts/import-blogs.py` | Import competitor/tool **blog** posts into `Literature/Blogs/<Company>/` (drops changelogs/release/PR posts). Registry of sources; `--list` / `--only KEY` / `--dry-run`. |
+| `scripts/.venv/bin/python scripts/import-blogs.py` | Import competitor/tool **blog** posts into `Literature/Blogs/<Company>/` (drops changelogs/release/PR posts; can also drop by the post's own site section, and read several sitemaps per source). Registry of sources; `--list` / `--only KEY` / `--dry-run`. |
 | `scripts/.venv/bin/python scripts/import-docs.py` | Build curated third-party doc collections (**Tool & Competitor Documentation** for SQL dialects; **Source Systems Knowledge** for ERP/source-system table references; **Specifications** for standards & ontologies) as one consolidated markdown file per source. Discovery via `llms_full` / `sitemap` / `crawl` / `toc` / `pages` / `git` (which can read an existing `reference/` checkout and, given the site's sitemap, cite the hosted page each repo file renders to). `--list` / `--only KEY` / `--dry-run` / `--force`. |
 | `scripts/.venv/bin/python scripts/dbdb-systems.py all` | Mirror the CMU [dbdb.io](https://dbdb.io) "Database of Databases" into `db_systems/dbdb/*.md` (tag front-matter + prose) **and** derive the dbdb-aligned tag taxonomy (`taxonomy` / `gather` / `scrape`). |
 | `scripts/.venv/bin/python scripts/package-data.py` | Package the DuckDB search index + `Literature/` into the companion **Git LFS** data repo (`init` / `pack` / `push` / `restore` / `status`). |
@@ -188,12 +326,83 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 | `scripts/.venv/bin/python scripts/cmu-db-group.py all` | CMU Database Group publications (`db.cs.cmu.edu/publications`) — direct self-hosted PDFs. |
 | `scripts/.venv/bin/python scripts/cmu-course-papers.py all` | CMU course "papers/" **open Apache autoindex** dirs (e.g. Ailamaki's `~natassa/courses/15-721/papers/`) — classic DB literature; `--url` to add more. |
 | `scripts/.venv/bin/python scripts/lunadong-reading-list.py all` | Luna Dong's classic DB reading list (citations only) — best-effort PDF resolution via the CMU page-numbered catalog (`p<page>-<name>.pdf`), DBLP, Unpaywall and arXiv. |
+| `scripts/.venv/bin/python scripts/idsa-papers.py all` | [IDSA](https://internationaldataspaces.org/publications/papers/) position & white papers (data spaces, data sovereignty, usage control) — direct PDFs, named by edition, filed under `Specifications/IDSA/`. |
+| `scripts/.venv/bin/python scripts/panikzettel.py all` | [RWTH Aachen Panikzettel](https://htwr-aachen.de/panikzettel) — 36 student-written course cheat sheets (automata, complexity, databases, logic, stochastics, ML …). The listing renders client-side, so metadata comes from its JSON API (`api.htwr-aachen.de/api/panikzettel/`), which is also the only place the revision date exists. Filed under `Course Notes/RWTH Aachen Panikzettel/`. |
 | `scripts/.venv/bin/python scripts/tuberlin-dima.py all` | TU Berlin DIMA group publications (Volker Markl) — paginated TYPO3 list (~15 pages), direct self-hosted PDFs. |
 | `scripts/.venv/bin/python scripts/rxin-db-readings.py all` | Reynold Xin's `rxin/db-readings` — in-repo classic-DB PDFs **plus** a best-effort crawl of the linked "External Reading Lists" (Berkeley/Brown/Stanford/MIT/Wisconsin/CMU — a list of lists). |
 | `scripts/.venv/bin/python scripts/sigmod-arxiv.py all` / `icde-arxiv.py` / `cais-acm.py` / `tum-bpm.py` | SIGMOD (arXiv), ICDE 2021–2026 (arXiv + Unpaywall DOI fallback), ACM CAIS (Unpaywall OA), TUM BPM chair (author-version PDFs). |
 
-> ### ⚠️ Unfinished harvesting & indexing (as of 2026-08-18)
+> ### ⚠️ Unfinished harvesting & indexing (as of 2026-08-25)
 >
+> **Latest round (2026-08-25) — the Databricks blog, indexed.** `import-blogs.py`
+> gained the **Databricks** source (**1,863** posts of its ~3,340, filtered by the
+> section each post declares — see *`Blogs/<Company>/`*), the **Kùzu** GitHub Pages
+> mirror now that `kuzudb.com` is gone, and the **CedarDB / TypeDB** entries that
+> `SOURCES.md` documented but the registry had lost (**+16** posts). With
+> MotherDuck (+9) and Bauplan (+1) the corpus is **13,137 documents / 814,790
+> chunks**, and `Databricks` is the largest `Company` node at **1,865** documents.
+> Two importer defects were fixed on the way — a soft-404 that silently
+> substitutes the blog index for a removed post, and filenames that depend on
+> which apostrophe a site serves; both are described under *`Blogs/<Company>/`*.
+>
+> Two things this round leaves open. The new posts have accurate titles (each
+> page's `<h1>`) but **no LLM `keywords`**, so they join the enrichment queue
+> below. And `search/index.duckdb` now stands at **41 GB** against the ~1.7 GB
+> recorded further up this file — far more than 1,891 markdown files can account
+> for, so it looks like accumulated free space rather than data and is worth a
+> `CHECKPOINT`/compaction check before the next `package-data.py pack`.
+>
+> **Round of 2026-08-25 — RWTH Panikzettel, complete and indexed.**
+> All **36 sheets** of the [Panikzettel](https://htwr-aachen.de/panikzettel)
+> collection are fetched, filed under `Course Notes/RWTH Aachen Panikzettel/` and
+> indexed (`scripts/panikzettel.py`, `SOURCES.md` §8b) — nothing outstanding. The
+> same index pass also cleared the leftover backlog noted below: **103 documents**
+> were indexed and 9,727 skipped as unchanged, which finally took in the IDSA
+> papers and the Celonis Networks `.docx` set and brings the corpus to
+> **11,248 documents / 791,340 chunks**. Their **LLM enrichment** is still
+> pending (heuristic titles only; see *Metadata enrichment backlog*), and the
+> Panikzettel now join that queue — the index titles them from their own cover
+> lines (*"FoSAP-Panikzettel"*, *"DBIS Panikzettel"*), which is accurate but
+> terser than the course name in the filename.
+>
+> **Latest round (2026-08-22) — IDSA data spaces + Celonis Networks, indexed.**
+> The IDSA corpus (`SOURCES.md` §5b — 19 position/white papers, IDS-RAM 4.0 and
+> the Dataspace Protocol under `Specifications/IDSA/`) and the 7 Networks design
+> documents under `Celonis Internal/` are imported **and indexed**: the corpus is
+> now **11,212 documents / 789,874 chunks**, and the `IDSA` company node carries
+> all 21 files.
+>
+> Indexing them exposed a defect class worth recording, because it had been
+> silently costing the collection this repository cares most about. The `.docx`
+> reader in `search/extract.py` read `Document.paragraphs`, which by design
+> **skips everything inside a `<w:tbl>`** — so every table in every Word document
+> was invisible to search. That is not a rounding error here: **65 of 83** `.docx`
+> files in `Literature/` contain tables and **~900,000 characters** were being
+> dropped, concentrated exactly where internal design documents put their
+> substance. `PMI Team Ideas.docx` is a single table and was indexed as its
+> 20-character heading; `Networks on PnE Infrastructure - Responsibilities.docx`
+> is a 15×4 ownership matrix indexed as its 300-character intro; `Business Rule
+> Concept`, `Hierarchical Event Logs in PQL` and `Relayering Master Document`
+> each lost ~60%. Like the garbled-text and glued-text classes below, it passed
+> every existing check: the documents *were* indexed, with plausible-looking
+> prose, and nothing short of asking a question only the table could answer would
+> reveal the gap.
+>
+> The fix walks the body in document order (`_iter_docx_blocks`) so tables land
+> where they belong, and renders each row as `header: value` pairs rather than a
+> grid — a bare list of cells loses which column a value came from, and "who owns
+> the NAT gateway allowlist" is only answerable if `Networks` stays attached to
+> `Responsible team`. Two details earned their keep: horizontally merged cells
+> repeat once per grid column in python-docx and are collapsed by element
+> identity, and **two-column tables are not header+rows** but key/value lists, so
+> pairing them produces nonsense (`Author: Collaborators; Jonas Weich: …`) and
+> they are emitted as plain rows instead. Since the files themselves never
+> changed, the content-hash fast-skip had to be defeated to re-read them —
+> `index.reindex_paths` does that, the same remedy `reindex_ocr_documents` uses
+> for OCR ("the file did not change, its *extraction* did"). All 65 were
+> re-indexed and verified to carry their table text.
+>
+
 > **Latest round** — the widened **SIGMOD 2015–2026** harvest ran to completion:
 > of its 2,758 papers **1,398 have an open copy** and **1,167 are in hand**
 > (the 231 that matched but would not download are almost all `dl.acm.org`
@@ -371,13 +580,27 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 >   `import-downloads.py`. Recording a `source_url` per document (design §4,
 >   tier 1) is what would let a future round skip them without downloading.
 >   (`fetch-papers.py` still has this gap; the SIGMOD/ICDE matchers no longer do.)
-> - **Metadata enrichment backlog** — **8,336 of 11,142** indexed documents are not
->   LLM-enriched, so many carry heuristic junk titles (e.g. `product et al. - the
->   1890 U.S. census`) — including the 146 documents OCR was just paid for, whose
->   old titles were derived from the garbage the OCR replaced. `… -m search.cli
->   enrich` is resumable and content-hash cached (~3.2 s/doc, so the full backlog is
->   a ~7 h run); then `search/retitle.py` to fix filenames and `… -m search.cli
->   graph --build`.
+> - **Metadata enrichment backlog** — largely **cleared**: the ~7 h run described
+>   below worked the backlog down from 8,336 to **27 of 11,212** documents. What
+>   is left is the 2026-08-22 arrivals (the IDSA papers, the Networks documents
+>   and a few others), which still carry heuristic titles taken from cover
+>   boilerplate — the IDSA PDFs are indexed as *"Position Paper of members of the
+>   IDS Association"* and the Networks `.docx` as *"Word Document"*. Only the
+>   `title`/`keywords` fields are affected; the text is indexed and retrievable,
+>   and the filenames are accurate.
+>
+>   Finishing it needs the **Celonis AI Gateway**, which was unreachable on the
+>   evening of 2026-08-22: two `enrich` attempts sat for 12 and 7 minutes with a
+>   **CLOSED** socket to the gateway and ~1 s of CPU, i.e. blocked on a read that
+>   never returns. Worth fixing when convenient — `search/llm.py` sets no socket
+>   timeout, so an unresponsive gateway hangs the pass indefinitely *while holding
+>   the DuckDB write lock*, which blocks indexing and search too. Re-run when the
+>   gateway is up (resumable, content-hash cached, ~3.2 s/doc, so 27 documents is
+>   ~2 min), then `… -m search.cli graph --build`.
+>
+>   Do **not** run `search/retitle.py` over `Specifications/IDSA/` — those
+>   filenames deliberately carry the edition (`(v1.1, 2025-11)`), which is what
+>   distinguishes two same-titled papers and which an LLM-derived title drops.
 >
 >   Two things had to be fixed before this could run unattended. The model was
 >   given **600 tokens** for its JSON reply and emitted it pretty-printed, so any
@@ -401,9 +624,10 @@ scripts/.venv/bin/python scripts/paperfetch.py lookup --doi 10.…
 >   lists have **no open copy** (`unresolved`) and 2 lists were unreachable; these
 >   are best-effort leftovers (see `Inbox/db-readings/_db-readings-report.csv`).
 >
-> Everything already downloaded into `Literature/`, `Transcripts/` and
-> `db_systems/` **has been imported and indexed** into `search/index.duckdb`; the
-> items above are the outstanding *fetch* (and enrichment) work.
+> Everything else already downloaded into `Literature/`, `Transcripts/` and
+> `db_systems/` **has been imported and indexed** into `search/index.duckdb`
+> (including the IDSA, Networks and Panikzettel material, as of the 2026-08-25
+> pass); the items above are the outstanding *fetch* (and enrichment) work.
 
 ### Companion data repo (`~/docs-data`, Git LFS)
 
