@@ -12,12 +12,15 @@ Edge tables:  doc_authors (doc->author), doc_keywords (doc->keyword),
               doc_companies (doc->company)
 
 The ``companies`` layer indexes non-research tooling: the vendor/tool/standards-body
-behind each imported blog post, piece of tool documentation, or specification. A
-document's company is derived from its library path — files filed under
+/analyst-firm behind each imported blog post, piece of tool documentation,
+specification, or analyst report. A document's company is derived from its library
+path — files filed under
 ``Literature/Blogs/<Company>/``, ``Literature/Tool & Competitor Documentation/<Company>/``,
-``Literature/Source Systems Knowledge/<Company>/`` or ``Literature/Specifications/<Company>/``
+``Literature/Source Systems Knowledge/<Company>/``, ``Literature/Specifications/<Company>/``
+or ``Literature/Analyst Reports/<Firm>/``
 — so a vendor's blogs, dialect docs, source-system references and specifications
-collapse onto a single ``Company`` node.
+collapse onto a single ``Company`` node, and an analyst firm (Gartner, Everest
+Group, …) becomes a node of the same kind.
 """
 
 from __future__ import annotations
@@ -31,7 +34,8 @@ PARTICLES = {"van", "der", "de", "den", "von", "la", "le", "du", "di", "dos"}
 # (non-research tooling). The regex captures that subfolder from ``rel_path``.
 COMPANY_PATH_RE = (
     r"^(?:\./)?(?:Literature/)?"
-    r"(?:Blogs|Tool & Competitor Documentation|Source Systems Knowledge|Specifications)/([^/]+)/"
+    r"(?:Blogs|Tool & Competitor Documentation|Source Systems Knowledge|Specifications"
+    r"|Analyst Reports)/([^/]+)/"
 )
 
 
@@ -148,7 +152,8 @@ def build_entities(con) -> dict:
     """)
 
     # Companies: derived from the library path for non-research tooling
-    # (Blogs/<Company>/… and Tool & Competitor Documentation/<Company>/…).
+    # (Blogs/<Company>/…, Tool & Competitor Documentation/<Company>/…,
+    # Analyst Reports/<Firm>/… — see COMPANY_PATH_RE).
     con.execute(
         """
         INSERT INTO companies (company_id, name, name_norm)

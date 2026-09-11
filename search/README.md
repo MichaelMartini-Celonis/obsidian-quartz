@@ -1,7 +1,9 @@
 # `search/` — Graph-RAG search engine over `~/docs`
 
-An embedded search engine over the knowledge repository (the `Literature/` library and `Outbox/`
-drafts). Everything runs in a single embedded **DuckDB** database — no server.
+- **Two indexes:** `search/index.duckdb` (papers + `Internal/` + `Personal/drive`, default) and
+  `search/meet.duckdb` (`--db meet`, Google Meet / Gemini notes under `Personal/meet/`).
+  The main index has an `internal` flag: `Internal/` and `Personal/` are `TRUE`; public
+  `Literature/` is `FALSE`. Use `--internal-only` / `--external-only`.
 
 - **Vector search:** DuckDB `vss` (HNSW, cosine) over chunk embeddings.
 - **Lexical search:** DuckDB built-in `fts` (BM25).
@@ -62,19 +64,28 @@ For pipeline testing without any model, `SEARCH_EMBEDDER=hash` uses a determinis
 Run from `~/docs`:
 
 ```bash
-# Build / refresh the index (Literature + Transcripts + notebooks + Outbox by default). Incremental & idempotent.
+# Build / refresh the index (Literature + Transcripts + notebooks + db_systems + Outbox + Internal + Personal/drive).
 scripts/.venv/bin/python -m search.cli index
 
 # Limit / scope while testing:
 scripts/.venv/bin/python -m search.cli index --roots literature --limit 50
 scripts/.venv/bin/python -m search.cli index --roots notebooks     # just the notebooks/ root
+scripts/.venv/bin/python -m search.cli index --roots internal
+scripts/.venv/bin/python -m search.cli index --roots personal      # Personal/drive only
 scripts/.venv/bin/python -m search.cli index --reset          # drop & rebuild (needed if the embedder dim changes)
 
 # Query:
 scripts/.venv/bin/python -m search.cli search "object-centric process discovery" -k 10
+scripts/.venv/bin/python -m search.cli search "PQL" --internal-only
+scripts/.venv/bin/python -m search.cli search "object-centric" --external-only
 
 # Index statistics:
 scripts/.venv/bin/python -m search.cli stats
+
+# Meeting notes (separate DuckDB file; does not touch the paper index):
+scripts/.venv/bin/python scripts/garden-sync.py pull-meet --index
+scripts/.venv/bin/python -m search.cli --db meet index
+scripts/.venv/bin/python -m search.cli --db meet search "event handling"
 ```
 
 ### Proceedings → per-paper PDFs
@@ -120,7 +131,7 @@ scripts/.venv/bin/python -m search.cli metadata --status   # coverage report
 
 Image-only PDFs are invisible to search; a document-parsing VLM makes them readable. It runs
 **locally on Apple silicon via MLX** — `PaddleOCR-VL` (0.9B, Apache-2.0) at ~5 s/page on an M4 Max —
-so page images never leave the machine and `Literature/Celonis Internal/` scans are fair game:
+so page images never leave the machine and `Internal/` scans are fair game:
 
 ```bash
 scripts/.venv/bin/python -m search.cli ocr --list                  # what would be processed

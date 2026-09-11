@@ -29,25 +29,46 @@ NOTEBOOKS_DIR = DOCS_ROOT / "notebooks"
 # mirror under db_systems/dbdb/), tagged with the dbdb-aligned taxonomy. A
 # first-class search root so systems are queryable alongside the papers.
 DB_SYSTEMS_DIR = DOCS_ROOT / "db_systems"
+# Personal Drive exports. Meet notes stay in a separate DuckDB; My Drive
+# working files (`Personal/drive/`) live in the main index with `internal=TRUE`.
+PERSONAL_DIR = DOCS_ROOT / "Personal"
+MEET_NOTES_DIR = PERSONAL_DIR / "meet"
+PERSONAL_DRIVE_DIR = PERSONAL_DIR / "drive"
+
+# Celonis-internal working material (top-level, beside Personal/). Indexed in
+# the main DuckDB and flagged `internal=TRUE`.
+INTERNAL_DIR = DOCS_ROOT / "Internal"
+# Historical Literature subfolder name — still recognised by path-flag logic.
+INTERNAL_COLLECTION = "Celonis Internal"
 
 DB_PATH = Path(os.environ.get("SEARCH_DB", str(SEARCH_DIR / "index.duckdb")))
-
-# Documents under this Literature sub-collection are flagged as Celonis-internal
-# (non-public working material) in the index. Internal-ness is a property of
-# where a file lives, so it can be re-flagged simply by moving the file and
-# re-indexing. The importer routes detected internal docs here.
-INTERNAL_COLLECTION = "Celonis Internal"
-INTERNAL_DIR = LITERATURE_DIR / INTERNAL_COLLECTION
+MEET_DB_PATH = Path(os.environ.get("SEARCH_MEET_DB", str(SEARCH_DIR / "meet.duckdb")))
 
 
 def is_internal_rel_path(rel_path: str) -> bool:
-    """True if a document rel_path belongs to the Celonis-internal collection."""
-    prefix = f"Literature/{INTERNAL_COLLECTION}/"
-    return rel_path == f"Literature/{INTERNAL_COLLECTION}" or rel_path.startswith(prefix)
+    """True if a document is non-public (Internal/ or Personal/, or the old
+    Literature/Celonis Internal/ prefix). Public literature is False."""
+    if not rel_path:
+        return False
+    if rel_path == "Internal" or rel_path.startswith("Internal/"):
+        return True
+    if rel_path == "Personal" or rel_path.startswith("Personal/"):
+        return True
+    prefix = f"Literature/{INTERNAL_COLLECTION}"
+    return rel_path == prefix or rel_path.startswith(prefix + "/")
+
+
+def resolve_db_path(alias: str | None) -> Path:
+    """Map ``--db meet`` / ``--db main`` / a filesystem path to a DuckDB file."""
+    if not alias or alias in ("main", "default", "papers"):
+        return DB_PATH
+    if alias in ("meet", "meetings"):
+        return MEET_DB_PATH
+    return Path(alias).expanduser()
 
 # File types we ingest. Others are ignored.
 IMPORT_SUFFIXES = {".pdf", ".docx", ".md", ".txt", ".ipynb", ".bpmn", ".epub",
-                   ".pptx", ".ppsx"}
+                   ".pptx", ".ppsx", ".xlsx"}
 
 # Chunking (character based, paragraph aware).
 CHUNK_SIZE = int(os.environ.get("SEARCH_CHUNK_SIZE", "1200"))

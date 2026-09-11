@@ -55,6 +55,8 @@ DB_SRC = DOCS_ROOT / "search" / "index.duckdb"
 DB_REL = "index/index.duckdb"
 LITERATURE_SRC = DOCS_ROOT / "Literature"
 LITERATURE_REL = "Literature"
+INTERNAL_SRC = DOCS_ROOT / "Internal"
+INTERNAL_REL = "Internal"
 
 # Binary file types (present in Literature) that must go through Git LFS.
 LFS_PATTERNS = [
@@ -273,6 +275,15 @@ def _build_manifest(repo: Path) -> dict:
             "bytes": total,
             "size_human": human(total),
         }
+    internal = repo / INTERNAL_REL
+    if internal.exists():
+        total, count = dir_stats(internal)
+        manifest["internal"] = {
+            "path": INTERNAL_REL,
+            "files": count,
+            "bytes": total,
+            "size_human": human(total),
+        }
     return manifest
 
 
@@ -336,6 +347,12 @@ def cmd_pack(args) -> int:
         _mirror(LITERATURE_SRC, repo / LITERATURE_REL, args.dry_run)
     else:
         print("note: Literature/ not found — skipping corpus", file=sys.stderr)
+
+    if INTERNAL_SRC.exists():
+        print(f"mirroring Internal/ -> {repo / INTERNAL_REL} ...")
+        _mirror(INTERNAL_SRC, repo / INTERNAL_REL, args.dry_run)
+    else:
+        print("note: Internal/ not found — skipping internal corpus", file=sys.stderr)
 
     if args.dry_run:
         print("\n[dry-run] no manifest written and nothing committed.")
@@ -410,8 +427,9 @@ def cmd_restore(args) -> int:
     repo: Path = args.repo
     db_pkg = repo / DB_REL
     lit_pkg = repo / LITERATURE_REL
+    int_pkg = repo / INTERNAL_REL
 
-    if not db_pkg.exists() and not lit_pkg.exists():
+    if not db_pkg.exists() and not lit_pkg.exists() and not int_pkg.exists():
         print(f"error: nothing to restore from {repo} (run pack/clone first).", file=sys.stderr)
         return 2
 
@@ -425,6 +443,12 @@ def cmd_restore(args) -> int:
         else:
             print(f"restoring Literature/ -> {LITERATURE_SRC} ...")
             _mirror(lit_pkg, LITERATURE_SRC, args.dry_run)
+    if int_pkg.exists():
+        if args.link:
+            _place(int_pkg, INTERNAL_SRC, link=True, dry_run=args.dry_run)
+        else:
+            print(f"restoring Internal/ -> {INTERNAL_SRC} ...")
+            _mirror(int_pkg, INTERNAL_SRC, args.dry_run)
     if args.dry_run:
         print("\n[dry-run] nothing written.")
     return 0
@@ -482,6 +506,16 @@ def cmd_status(args) -> int:
                   f" {'(match)' if same else '(DIFFERENT — run pack)'}")
         else:
             print(f"  literature: live {lc} files/{human(lt)} — not yet packaged")
+    if INTERNAL_SRC.exists():
+        lt, lc = dir_stats(INTERNAL_SRC)
+        pkg = repo / INTERNAL_REL
+        if pkg.exists():
+            pt, pc = dir_stats(pkg)
+            same = (lt, lc) == (pt, pc)
+            print(f"  internal: live {lc} files/{human(lt)} vs packaged {pc} files/{human(pt)}"
+                  f" {'(match)' if same else '(DIFFERENT — run pack)'}")
+        else:
+            print(f"  internal: live {lc} files/{human(lt)} — not yet packaged")
     return 0
 
 

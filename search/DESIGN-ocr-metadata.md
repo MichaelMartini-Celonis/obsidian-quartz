@@ -145,7 +145,7 @@ Pluggable exactly as `config.EMBEDDER` already is for `local`/`gateway`/`hash`. 
 | `none` | — | — | Skip OCR; pipeline degrades exactly as today. |
 
 Choosing local by default also dissolves the data-egress question §7 used to raise. Three of the 28
-OCR candidates are `Literature/Celonis Internal/` documents — including
+OCR candidates are `Internal/` documents — including
 `wvdaalst - PQL Engine Saola DB (2).pdf`. With a local default there is no decision to get wrong:
 nothing leaves the machine, and `internal = TRUE` only needs guarding on the two remote backends.
 

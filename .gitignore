@@ -25,11 +25,19 @@ db_systems/
 # Outbox — authored working drafts/artifacts; pushed to their own repos, not tracked here.
 Outbox/
 
+# Personal Drive exports (Meet notes, My Drive working files). Gitignored.
+Personal/
+
+# Celonis-internal working material (moved out of Literature/). Gitignored.
+Internal/
+
 # Python tooling
 scripts/.venv/
 scripts/credentials.json
 scripts/.token.json
 scripts/.google-docs-manifest.json
+scripts/.google-drive-token.json
+scripts/.rclone.conf
 
 # Import manifests + library backups (large / machine-local)
 imports/

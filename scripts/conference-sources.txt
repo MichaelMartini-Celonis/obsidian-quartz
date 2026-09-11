@@ -34,6 +34,65 @@ method = parse DBLP / accepted-papers HTML for title/authors; resolve PDF via
 script = scripts/icde-arxiv.py     (gather | match | download | all)
 out    = Inbox/icde-arxiv/<year>/<track>/
 
+conf   = PVLDB / VLDB
+years  = volume 19 = VLDB 2026 (volume N = VLDB N+7; --volumes 14-19 for 2021–2026)
+list   = https://www.vldb.org/pvldb/volumes/<N>/  (Next.js; papers live in
+         __NEXT_DATA__.props.pageProps.groupedIssues with a direct volN/p*.pdf)
+method = the proceedings are fully open. Front-matter PDFs are dropped. No arXiv
+         or Unpaywall step. IndexDedup gates the download: a title match is a
+         genuine duplicate (the vols 14–18 sweep already put those in Literature/).
+script = scripts/pvldb-papers.py   (gather | download | all)
+out    = Inbox/pvldb-papers/<year>/  ->  Literature/Proceedings/PVLDB/
+note   = `gather` writes the paper backlog (Inbox/pvldb-papers/_pvldb-papers.json).
+         Default --volumes 19 (this year's conference).
+
+conf   = CIDR
+years  = 2019-2026 (every year the Skeleton/paper-card site still publishes)
+list   = https://vldb.org/cidrdb/<year>/  (same tree as cidrdb.org; seed page
+         https://vldb.org/cidrdb/2025/trampoline-style-queries-for-sql.html)
+method = the proceedings are fully open. Each <div class="paper-card"> carries
+         title, authors and a direct ../papers/<year>/*.pdf link — no arXiv or
+         Unpaywall step. Older volumes under www.cidrdb.org/cidrYYYY/ are a
+         different layout and are not harvested here.
+script = scripts/cidr-papers.py    (gather | download | all)
+out    = Inbox/cidr-papers/<year>/  ->  Literature/Proceedings/CIDR/
+note   = `gather` writes the paper backlog (Inbox/cidr-papers/_cidr-papers.json).
+         IndexDedup gates the download: a title match is a genuine duplicate.
+
+# --- Iterative SQL / Halloween / fixpoint (CIDR 2025 trampoline lineage) -----
+conf   = Iterative SQL, Halloween Problem, and fixpoint evaluation
+years  = 1985-2025
+list   = enumerated in scripts/gap-recursive-sql.py from the references of
+         Lambrecht et al., CIDR 2025 (vldb.org/cidrdb/papers/2025/p1-lambrecht.pdf)
+         plus the Halloween Problem (Chamberlin/Selinger/Astrahan; Tandem 1987)
+         and the semi-naive / magic-sets evaluation literature that paper's
+         WITH RECURSIVE loop restates.
+method = explicit override URLs (cidrdb, Tübingen, Jim Gray, NSF PAR) then
+         arXiv → OpenAlex → DBLP ee → Unpaywall → Semantic Scholar.
+script = scripts/gap-recursive-sql.py [--dry-run]
+out    = Inbox/gap-recursive-sql/ -> Literature/Process Querying/ (via
+         COHORT_FOLDERS)
+
+# --- Agentic SQL / PQL reliability (Stonebraker–Wenz + HCI + repair agents) -
+conf   = Agentic SQL / PQL reliability
+years  = 1981-2026
+list   = enumerated in scripts/gap-agentic-sql.py: RUBICON (Wenz/Stonebraker),
+         Spider 2.0, DIN/MAC/CHASE/CHESS, schema-linking and abstention papers,
+         SQL HCI classics (Reisner, Smelcer, Taipalus, Miedema, Borthick),
+         Vogelgesang Celonis PQL chapter. BEAVER / BenchPress / QueryVis already
+         held (IndexDedup). Bauplan safe-execution shelf stays in bauplan-papers.py.
+         Stonebraker CACM Blog@CACM via import-blogs.py key stonebraker-cacm.
+method = explicit override URLs (arXiv pdf) then arXiv → OpenAlex → DBLP ee →
+         Unpaywall. Synthesis: Outbox/agentic-sql-reliability/.
+         Known closed (no OA PDF via resolvers): Reisner CSUR SQL survey,
+         Smelcer user-errors paper, Borthick ambiguity DSS — cite from
+         Taipalus/Miedema holdings + synthesis; do not treat as harvest bugs.
+         RUBICON arXiv PDF is identical to the "Alternate Agentic AI
+         Architecture" title; IndexDedup/import keep one copy under that stem.
+script = scripts/gap-agentic-sql.py [--dry-run]
+out    = Inbox/gap-agentic-sql/ -> Literature/Process Mining/AI/ (via
+         COHORT_FOLDERS)
+
 conf   = CAIS
 years  = 2026
 list   = https://www.caisconf.org/program/2026/papers/  (per-paper pages carry the ACM DOI)
@@ -103,6 +162,237 @@ method = download in-repo PDFs directly from raw.githubusercontent.com; for each
          CSV export). Dedup against the search index; --no-external to skip the lists
 script = scripts/rxin-db-readings.py   (gather | resolve [--limit N] | download | all)
 out    = Inbox/db-readings/<section>/
+
+# --- Standards bodies / industry associations --------------------------------
+# Not a conference either; a standards organisation's own publication list. The
+# output is a *publisher-grouped* collection rather than topic-classified papers,
+# for the reason given in README.md under Analyst Reports/<Firm>/.
+
+conf   = IDSA  (International Data Spaces Association — data spaces, data sovereignty)
+years  = 2021-2026 (every edition the page still offers)
+list   = https://internationaldataspaces.org/publications/papers/  (WordPress/Divi;
+         the list is rendered by the Download Monitor plugin as <div class="…
+         mz-download-item"> blocks carrying <h3>Title</h3>, a "Position Paper |
+         Version 1.1 | November 2025" subtitle and a /download/<id>/ link. The
+         featured Rulebook white paper sits outside that markup, as a cover image
+         linking to the same endpoint with its heading *after* the link.)
+method = parse the listing for title + version + date (the PDFs' own front matter
+         does not carry the edition, and several papers exist in two editions
+         under one title); GET /download/<id>/ returns the PDF directly. Skipping
+         is decided by whether the exact versioned filename is already held in
+         Literature/Specifications/IDSA — deliberately *not* by an IndexDedup
+         title match, which would drop the newer of two same-titled editions.
+script = scripts/idsa-papers.py     (gather | download | all)
+out    = Inbox/idsa/   ->  Literature/Specifications/IDSA/
+note   = the normative counterparts (IDS-RAM 4.0, Dataspace Protocol) are not
+         PDFs but GitBook sites generated from git, so they are registered in
+         scripts/import-docs.py instead (keys ids-ram, dataspace-protocol) and
+         land in the same collection.
+
+# --- University course material ----------------------------------------------
+# Not a conference; a student collective's own publication list. Grouped by
+# publisher rather than topic, for the reason given in README.md under
+# Course Notes/RWTH Aachen Panikzettel/.
+
+conf   = Panikzettel  (RWTH Aachen student course cheat sheets, CC-BY-SA-4.0)
+years  = 2016-2026 (every sheet the collection offers; ~36)
+list   = https://htwr-aachen.de/panikzettel  — a Next.js app that renders its
+         list client-side, so the listing HTML carries no links at all. The
+         data is https://api.htwr-aachen.de/api/panikzettel/ (JSON array of
+         {name, shortname, type, filename, url, semester, date, downloads}),
+         found via the site's own source (src/lib/panikzettel.ts).
+method = read the API; each record's `url` is the PDF directly. Skipping is
+         decided by whether the exact dated filename is already held in
+         Literature/Course Notes/RWTH Aachen Panikzettel — deliberately *not*
+         by an IndexDedup title match, which would drop a newer revision of a
+         sheet already indexed under the same title.
+script = scripts/panikzettel.py     (gather | download | all)
+out    = Inbox/panikzettel/   ->  Literature/Course Notes/RWTH Aachen Panikzettel/
+note   = take the revision date from the API, never from the PDF: seven sheets
+         are typeset with \today and so print the site's last *build* date
+         (all seven say "30. Juli 2026") rather than their own — which fails
+         silently, and on exactly the sheets that are years out of date.
+
+conf   = Apache projects (VLDB / SIGMOD / SoCC / CIDR / NSDI / OSDI / ICDE)
+years  = 1996-2024 (whatever year each system's canonical paper appeared)
+list   = none — there is no listing to crawl. Apache projects publish
+         documentation, not papers; the papers sit at the venues above under the
+         authors' names. The cohort is therefore enumerated in the script: 87
+         entries across 52 projects, each tagged with the project it belongs to,
+         including the pre-Apache *ancestors* a project's design assumes but its
+         documentation never cites (Bigtable behind HBase, Dremel behind Parquet
+         and Drill, Percolator behind Fluo, Pregel behind Giraph, Raft behind
+         Ratis, Dapper behind SkyWalking, Mesos/Borg behind YuniKorn).
+method = arXiv -> OpenAlex -> Semantic Scholar -> Unpaywall (by DOI), then a
+         MIRRORS map of verified open locations as a last resort. The map is not
+         a convenience: OpenAlex reports most of the SIGMOD/SoCC half of this
+         literature as `closed` even where a free PDF has been on the author's
+         university page for fifteen years, so a first pass resolved only 20 of
+         62. It is consulted last so a paper that later becomes properly open is
+         still taken from its canonical home. Three venue patterns cover most of
+         the map: VLDB's proceedings are open at vldb.org/pvldb/vol<N>/, ACM
+         serves author-selected open articles at dl.acm.org/doi/pdf/<doi> even
+         where the abstract page presents a paywall, and USENIX publishes
+         everything. Every entry was verified by fetching it and checking for a
+         %PDF header — a third of the plausible-looking guesses returned an HTML
+         error page under HTTP 200.
+script = scripts/apache-papers.py   (gather | resolve | download | all)
+out    = Inbox/apache-papers/  ->  Literature/Data Platforms/Apache/
+note   = IndexDedup *does* gate the download here (unlike IDSA and the
+         Panikzettel): these are single-edition papers, so a title match is a
+         genuine duplicate rather than a newer revision. 25 of the 87 were
+         already held. Routing is by drop-zone subfolder (COHORT_FOLDERS in
+         import-downloads.py), because these papers share no cover-page
+         fingerprint and the topic rules scatter them on incidental vocabulary.
+         The documentation side of the same corpus is scripts/import-docs.py.
+
+# --- Vendor source-system documentation --------------------------------------
+# Not a conference; a vendor's own schema documents for a source system. The
+# prose half of the same corpus is scraped as markdown by scripts/import-docs.py
+# (keys jira-db, jira-data-pipeline); these are the attachments that page links.
+
+conf   = Atlassian Jira schema  (per-version database-schema documents, Jira 5.12-9.0)
+years  = 2012-2022 (one document per Jira version Atlassian still publishes)
+list   = https://developer.atlassian.com/server/jira/platform/database-schema/ —
+         the page's prose is short; its payload is a list of PDF attachments on
+         two CDN hosts (dac-static.atlassian.com, dac-lf.prod.atl-paas.net). The
+         href is an attachment id and says nothing about the version, so the
+         version is read off the anchor text (Jira_8.20_schema.pdf), including
+         the typo the page has carried for years (Jira_5.12_chema.pdf).
+method = direct PDF download, then a *text-layer probe* of each file. Six of the
+         seven are SchemaCrawler text listing every table and column (8.20: 176
+         tables in ~26k characters); jira_9.0_database_schema.pdf is 3 MB of two
+         embedded images with zero extractable characters — the newest edition,
+         and the only unusable one. Its page is 5449x5858 pt (76x81 inches), so
+         the OCR stage's 2200 px max edge cannot rescue it either. `text_chars`
+         is recorded per version in the report so this is visible at fetch time
+         rather than after indexing reports the document empty. Skipping is
+         decided by whether the exact versioned filename is already held.
+script = scripts/atlassian-schema.py   (gather | download | all)
+out    = Inbox/jira-schema/   ->  Literature/Source Systems Knowledge/Atlassian/
+note   = routing is by drop-zone subfolder (COHORT_FOLDERS), because a
+         SchemaCrawler export's cover page reads "Generated by: SchemaCrawler
+         8.16 / Database: H2" and the topic rules take it for a database paper.
+         Do not run search/retitle.py over this folder: an LLM title taken from
+         the first page drops the Jira version and names the host database
+         instead ("PostgreSQL Database Schema Documentation" for the 6.1 dump).
+
+# --- Artifact-centric / declarative process models ---------------------------
+# Not a conference; a curated cohort assembled to test whether anyone simulates
+# artifact-centric (Hull) or Guard-Stage-Milestone models the way BPMN models
+# are simulated. See SOURCES.md 3d. This literature is unusually badly served by
+# the open-access graph, so the archives below are enumerated as resolvers.
+
+conf   = Artifact-centric & declarative cohort (80 works, six cohorts)
+years  = 2003-2026
+list   = enumerated in scripts/gap-artifact-centric.py, from the concepts the
+         `artifact-centric-simulation` topic map (scripts/gap-topics.json)
+         returned MISSING or thin. Cohorts: foundations, verification,
+         enactment, declarative-simulation, paradigm-comparison,
+         object-centric-bps.
+method = every open location for a work is collected before any is declared
+         missing (candidates() returns a list, not the first hit), then each is
+         tried in turn: explicit override -> arXiv -> OpenAlex -> Unpaywall ->
+         Semantic Scholar -> CEUR volumes -> author pages -> EPrints -> DBLP
+         `ee` links. The list form is the point: OpenAlex and Unpaywall answered
+         for three Hull/Su papers with dl.acm.org 403s while plain PDFs sat on
+         Su's page.
+         Title matching against a page index requires either an exact match,
+         containment within a quarter in length, or -- for a pure fuzzy ratio --
+         agreement on every word of six characters or more. Without that last
+         rule Reijers' page answers for BOTH Fahland "Issue of Understandability"
+         and "Issue of Maintainability" (ratio 0.91, 47-character shared
+         prefix), and it hosts only the first.
+script = scripts/gap-artifact-centric.py [all|<cohort>] [--dry-run]
+out    = Inbox/gap-artifact-centric/ -> Literature/Process Modeling/ (flat, via
+         COHORT_FOLDERS; NOT a subfolder of its own -- the gap audit scores a
+         concept partly on whether a path names it, so a folder called
+         "Artifact-centric and Declarative" would report all 47 papers as
+         holdings of both terms)
+note   = 47 of 80 obtained, 15 already held, 16 with no open copy anywhere.
+         The unreachable 16 are the primary sources, not the periphery: the
+         WS-FM 2010 GSM paper, Hull's ODBASE 2008 survey, the Damaggio/Hull/
+         Vaculin equivalence result, Bhattacharya et al. BPM 2007, Barcelona,
+         the Marin/Hull/Vaculin CMMN survey. All IBM Research work whose author
+         copies went with the retired researcher.watson.ibm.com pages.
+
+# Archives indexed by gap-artifact-centric.py beyond the shared resolvers.
+# Each is here because it is the ONLY open location for something in the cohort.
+
+conf   = Riccardo De Masellis publications page
+years  = 2009-2023 (30 self-hosted PDFs)
+list   = http://demasellis.x10host.com/pages/publications.php
+method = anchor index (<a href="…​.pdf">Title</a>). Hrefs are relative to
+         /pages/, so the page URL must keep that segment or urljoin lands on a
+         404 at the site root.
+script = scripts/gap-artifact-centric.py::anchor_pdf_index (ANCHOR_PAGES)
+out    = used as a resolver
+note   = matters out of proportion to its size: De Masellis is a co-author on
+         Hull et al., "Business artifacts with guard-stage-milestone lifecycles"
+         (DEBS 2011) and self-hosts it, which makes this the only reachable
+         primary statement of the GSM meta-model. Also carries Solomakhin et al.
+         (GSM as DCDS), the JoDS semantic-enrichment paper, and the Hariri et
+         al. relational-artifacts verification line.
+
+conf   = bitsavers - IBM Systems Journal mirror
+years  = 1962-2007 (mirrored by volume/issue)
+list   = https://bitsavers.trailing-edge.com/pdf/ibm/IBM_Systems_Journal/
+method = direct path, /<volume><issue>/<first-author-surname>.pdf
+script  = scripts/gap-artifact-centric.py (explicit override)
+out    = used as a resolver
+note   = the only free copy of Nigam & Caswell, "Business artifacts: An approach
+         to operational specification" (IBM Sys. J. 42(3), 2003) -- the founding
+         paper of the artifact-centric line. IEEE holds the DOI closed,
+         Unpaywall reports it closed, and the aggregators only have it behind
+         bot walls.
+
+conf   = IEEE Data Engineering Bulletin
+years  = 1977-present (free since inception; absent from Unpaywall)
+list   = http://sites.computer.org/debull/
+method = direct path, /<issue>/<first-author-GIVEN-name>.pdf -- not guessable
+         from a citation: Cohn & Hull is `david.pdf`, and both `cohn.pdf` and
+         `hull.pdf` 404. The Sept 2009 issue is Su's special issue on
+         data-centric business processes, so its neighbours are worth taking too.
+script = scripts/gap-artifact-centric.py (explicit overrides)
+out    = used as a resolver
+
+conf   = IJCAI proceedings
+years  = 2013- (open, but addressed by paper number)
+list   = https://www.ijcai.org/Proceedings/<yy>  ->
+         https://www.ijcai.org/Proceedings/<yy>/Papers/<nnn>.pdf
+method = the paper number is not derivable from a citation and guessing is
+         actively wrong (141 is a different paper); the year's index page is the
+         only mapping from title to number.
+script = scripts/gap-artifact-centric.py (explicit override)
+out    = used as a resolver
+note   = De Giacomo & Vardi, "Linear Temporal Logic and Linear Dynamic Logic on
+         Finite Traces" (2013) is Papers/132.pdf.
+
+conf   = Ulm DBIS EPrints
+years  = any (institutional repository, queried not crawled)
+list   = https://dbis.eprints.uni-ulm.de/cgi/search?q=<title>
+method = per-row parse of <tr class="ep_search_result"> -- the record title is
+         in <em> inside the link to its abstract page and the row's own document
+         link is the PDF, so parsing per row is what keeps a title from being
+         paired with the neighbouring record's file.
+script = scripts/gap-artifact-centric.py::eprints_search (EPRINTS)
+out    = used as a resolver
+note   = the Reichert group's own copies: PHILharmonicFlows, object-aware
+         process management, and the Zugal/Haisjackl declarative-understandability
+         experiments.
+
+# --- Curated internal reading channels --------------------------------------
+
+conf   = Celonis #llm-paper-sharing
+years  = 2023-2026 (channel history through 2026-07-01)
+list   = Slack channel C05CVHZA728; reproducible URL snapshot in
+         scripts/slack-llm-sources.py (primary papers only; news, product pages,
+         social-only links, videos and magazine articles excluded)
+method = batch arXiv metadata -> title dedup against search/index.duckdb -> direct
+         PDF; non-arXiv landing pages use citation_title/citation_author and
+         citation_pdf_url. Blog posts use the shared HTML-to-markdown extractor.
+script = scripts/slack-llm-sources.py   (papers | blogs | all)
+out    = Inbox/slack-llm-papers/; blog posts -> Literature/Blogs/<Publisher>/
 
 # --- Common sources (shared OA / preprint resolvers) -------------------------
 # Not conferences themselves — cross-cutting backends that the harvesters above

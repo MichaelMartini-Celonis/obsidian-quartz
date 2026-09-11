@@ -51,8 +51,10 @@ def classify_source(path: Path) -> tuple[str, str, str]:
         ("Transcripts", config.TRANSCRIPTS_DIR),
         ("Notebooks", config.NOTEBOOKS_DIR),
         ("DB Systems", config.DB_SYSTEMS_DIR),
+        ("Internal", config.INTERNAL_DIR),
         ("Outbox", config.OUTBOX_DIR),
         ("Inbox", config.INBOX_DIR),
+        ("Personal", config.PERSONAL_DIR),
     ):
         try:
             rel = resolved.relative_to(root.resolve())
@@ -69,6 +71,11 @@ def classify_source(path: Path) -> tuple[str, str, str]:
         elif name == "DB Systems":
             # Group by collection sub-folder, e.g. "DB Systems/dbdb".
             topic = f"DB Systems/{rel.parts[0]}" if len(rel.parts) > 1 else "DB Systems"
+        elif name == "Internal":
+            topic = "Internal/" + "/".join(rel.parts[:-1]) if len(rel.parts) > 1 else "Internal"
+        elif name == "Personal":
+            # e.g. Personal/drive/… or Personal/meet/… → Personal/<subdir>
+            topic = "Personal/" + "/".join(rel.parts[:2]) if len(rel.parts) >= 2 else "Personal"
         else:
             topic = name
         return name, str(Path(name) / rel), topic
@@ -219,10 +226,19 @@ def backfill_internal(con) -> int:
     the flag in sync when files are moved into/out of the Celonis-internal
     collection. Returns the number of documents currently flagged internal.
     """
-    base = f"Literature/{config.INTERNAL_COLLECTION}"
     con.execute(
-        "UPDATE documents SET internal = (rel_path = ? OR starts_with(rel_path, ?))",
-        [base, base + "/"],
+        """
+        UPDATE documents SET internal = (
+            rel_path = 'Internal' OR starts_with(rel_path, 'Internal/')
+            OR rel_path = 'Personal' OR starts_with(rel_path, 'Personal/')
+            OR rel_path = ?
+            OR starts_with(rel_path, ?)
+        )
+        """,
+        [
+            f"Literature/{config.INTERNAL_COLLECTION}",
+            f"Literature/{config.INTERNAL_COLLECTION}/",
+        ],
     )
     return con.execute("SELECT count(*) FROM documents WHERE internal").fetchone()[0]
 
@@ -252,6 +268,30 @@ def reindex_ocr_documents(con, embedder) -> int:
             done += 1
         except Exception as exc:  # noqa: BLE001
             print(f"[error] {p.name}: {exc}", file=sys.stderr)
+    if done:
+        dbmod.create_search_indexes(con)
+    return done
+
+
+def reindex_paths(con, embedder, paths) -> int:
+    """Force re-ingest of specific files whose *extraction* changed.
+
+    Same situation as ``reindex_ocr_documents`` and the same remedy: the bytes on
+    disk are identical, so ``index_file`` would fast-skip on the content hash,
+    but the text we now get out of them is different. Dropping the ``documents``
+    row defeats that skip; ``index_file`` clears the stale chunks itself.
+    """
+    done = 0
+    for path in paths:
+        path = Path(path)
+        if not path.exists():
+            continue
+        con.execute("DELETE FROM documents WHERE path = ?", [str(path)])
+        try:
+            if index_file(con, embedder, path) == "indexed":
+                done += 1
+        except Exception as exc:  # noqa: BLE001 — one bad file must not stop the batch
+            print(f"[error] {path}: {exc}", file=sys.stderr)
     if done:
         dbmod.create_search_indexes(con)
     return done

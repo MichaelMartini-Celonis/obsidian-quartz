@@ -42,7 +42,7 @@ from pathlib import Path
 from lxml import html as H
 
 DOCS_ROOT = Path(__file__).resolve().parent.parent
-LITERATURE = DOCS_ROOT / "Literature"
+INTERNAL = DOCS_ROOT / "Internal"
 
 
 # --- Confluence storage format (cxhtml) -> markdown --------------------------
@@ -490,8 +490,8 @@ def main(argv=None) -> int:
     p.add_argument("--site", default="https://celonis.atlassian.net/wiki",
                    help="Confluence base URL (default: %(default)s)")
     p.add_argument("--company", default="Celonis")
-    p.add_argument("--collection", default="Celonis Internal",
-                   help="top-level Literature/ subfolder (default: %(default)s)")
+    p.add_argument("--collection", default="",
+                   help="optional subfolder under Internal/ (default: company name only)")
     p.add_argument("--out-name", default="", help="output filename (default: '<title>.md')")
     p.add_argument("--min-chars", type=int, default=80,
                    help="skip pages with a shorter body (default: %(default)s)")
@@ -514,7 +514,8 @@ def main(argv=None) -> int:
         return 0
 
     name = args.out_name or f"{args.title}.md"
-    dest = LITERATURE / args.collection / args.company / name
+    dest_root = INTERNAL / args.collection if args.collection else INTERNAL
+    dest = dest_root / args.company / name
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(header(args, n) + body, encoding="utf-8")
     print(f"[{args.space}] wrote {dest.relative_to(DOCS_ROOT)} "

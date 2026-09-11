@@ -26,7 +26,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import requests
 from lxml import html as H
@@ -34,8 +34,12 @@ from lxml import html as H
 DOCS_ROOT = Path(__file__).resolve().parent.parent
 LITERATURE = DOCS_ROOT / "Literature"
 BLOGS_DIR = LITERATURE / "Blogs"
-UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) "
-      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"}
+UA = {
+    "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) "
+                   "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 TIMEOUT = 40
 
 # Reuse the battle-tested HTML->markdown converter from import-web-book.py
@@ -64,12 +68,19 @@ class BlogSource:
     company: str
     sitemap: str = ""          # sitemap.xml URL (preferred discovery)
     sitemaps: list[str] = field(default_factory=list)  # …or several (site split its blog)
+    recursive_sitemaps: bool = False  # follow sitemap-index <loc>s
     index_url: str = ""        # fallback: an HTML listing page to scrape links from
+    index_urls: list[str] = field(default_factory=list)
+    next_xpath: str = ""       # listing-page pagination link(s)
+    max_index_pages: int = 1
+    urls: list[str] = field(default_factory=list)  # explicitly named posts
+    raw_markdown: bool = False  # URL body is markdown, not rendered HTML
     keep_re: str = ""          # a discovered URL must match this to be an article
     drop_url_re: str = ""      # …and must NOT match this
     base: str = ""             # site origin for resolving relative links
     content_xpath: str = ""    # optional explicit content node xpath
     title_xpath: str = ""      # optional title override (sites whose first <h1> is a site header)
+    title_override: str = ""   # fixed title for an explicitly named article
     min_chars: int = 500
     extra_drop: str = ""       # source-specific title-drop regex
     category_xpath: str = ""   # xpath yielding the post's own section/category labels
@@ -119,6 +130,27 @@ SOURCES: list[BlogSource] = [
         sitemap="https://bauplanlabs.com/sitemap.xml",
         keep_re=r"^https://bauplanlabs\.com/post/[^/]+/?$",
         base="https://bauplanlabs.com",
+    ),
+    # The site has no sitemap; `/tags/` is the complete content index (articles
+    # + bliki). `href = '...'` with spaces is still an attribute, so the usual
+    # lxml `//a[@href]` walk works. Fragments, photos and the traffic-analytics
+    # "site report" posts are out of keep_re / extra_drop.
+    BlogSource(
+        key="fowler", company="Martin Fowler",
+        index_url="https://martinfowler.com/tags/",
+        keep_re=r"^(?:https://martinfowler\.com)?/(articles|bliki)/.+",
+        drop_url_re=r"site-report|/(articles|bliki)/?$",
+        base="https://martinfowler.com",
+        extra_drop=r"\bsite report\b|musical discoveries|thoughtworks sale",
+        min_chars=200,
+    ),
+    BlogSource(
+        key="oleolesenbagneux", company="Ole Olesen-Bagneux",
+        sitemap="https://oleolesenbagneux.substack.com/sitemap.xml",
+        keep_re=r"^https://oleolesenbagneux\.substack\.com/p/[^/]+/?$",
+        base="https://oleolesenbagneux.substack.com",
+        title_xpath='//h1[contains(@class,"post-title")]',
+        min_chars=400,
     ),
     BlogSource(
         key="cedardb", company="CedarDB",
@@ -181,10 +213,125 @@ SOURCES: list[BlogSource] = [
                    r"indemnity|survey \d{4} results|spark survey",
     ),
     BlogSource(
+        key="google-research", company="Google Research",
+        sitemaps=["https://research.google/sitemap.xml",
+                  "https://blog.research.google/sitemap.xml"],
+        recursive_sitemaps=True,
+        keep_re=(r"^https://(?:research\.google/blog/[^/]+/"
+                 r"|blog\.research\.google/\d{4}/\d{2}/[^/]+\.html)$"),
+        base="https://research.google",
+    ),
+    BlogSource(
+        key="anthropic", company="Anthropic",
+        sitemap="https://www.anthropic.com/sitemap.xml",
+        keep_re=r"^https://www\.anthropic\.com/(?:engineering|research)/[^/]+/?$",
+        base="https://www.anthropic.com",
+    ),
+    # Posts live at /index/<slug>/ (the old /blog path is gone). The site-wide
+    # sitemap index is mostly product, partner and academy pages, so discovery
+    # is the three topical sitemaps that correspond to Anthropic's
+    # engineering+research cut — engineering, research, and the overlapping
+    # publication feed (system cards, evals, research notes).
+    BlogSource(
+        key="openai", company="OpenAI",
+        sitemaps=["https://openai.com/sitemap.xml/engineering/",
+                  "https://openai.com/sitemap.xml/research/",
+                  "https://openai.com/sitemap.xml/publication/"],
+        keep_re=r"^https://openai\.com/index/[^/]+/?$",
+        drop_url_re=r"/news/",
+        base="https://openai.com",
+    ),
+    BlogSource(
+        key="microsoft-engineering", company="Microsoft Engineering",
+        sitemap="https://devblogs.microsoft.com/engineering-at-microsoft/sitemap_index.xml",
+        recursive_sitemaps=True,
+        keep_re=r"^https://devblogs\.microsoft\.com/engineering-at-microsoft/[^/]+/?$",
+        base="https://devblogs.microsoft.com",
+    ),
+    BlogSource(
+        key="bair", company="Berkeley AI Research",
+        # Official source repository's GitHub Pages build. The Berkeley host
+        # intermittently times out/TLS-resets while this mirror is generated
+        # from the same `_posts` tree and remains crawlable.
+        index_url="https://bairblog.github.io/",
+        next_xpath='//a[contains(@class,"pagination-item")]/@href',
+        max_index_pages=100,
+        keep_re=r"^https://bairblog\.github\.io/\d{4}/\d{2}/\d{2}/[^/]+/?$",
+        drop_url_re=r"/example-post/?$",
+        base="https://bairblog.github.io",
+    ),
+    BlogSource(
+        key="huggingface", company="Hugging Face",
+        sitemap="https://huggingface.co/sitemap.xml",
+        recursive_sitemaps=True,
+        # Official posts have one path component; `/blog/<user>/<slug>` is the
+        # unreviewed community stream and is intentionally excluded.
+        keep_re=r"^https://huggingface\.co/blog/[^/]+/?$",
+        base="https://huggingface.co",
+    ),
+    BlogSource(
+        key="meta-engineering", company="Meta Engineering",
+        sitemap="https://engineering.fb.com/sitemap_index.xml",
+        recursive_sitemaps=True,
+        keep_re=r"^https://engineering\.fb\.com/\d{4}/\d{2}/\d{2}/[^/]+/[^/]+/?$",
+        base="https://engineering.fb.com",
+    ),
+    BlogSource(
+        key="zalando", company="Zalando",
+        sitemap="https://engineering.zalando.com/sitemap.xml",
+        keep_re=r"^https://engineering\.zalando\.com/posts/\d{4}/\d{2}/[^/]+\.html$",
+        base="https://engineering.zalando.com",
+    ),
+    BlogSource(
+        key="chip-huyen", company="Chip Huyen",
+        sitemap="https://huyenchip.com/sitemap.xml",
+        keep_re=r"^https://huyenchip\.com/\d{4}/\d{2}/\d{2}/[^/]+\.html$",
+        base="https://huyenchip.com",
+    ),
+    BlogSource(
+        key="metr", company="METR",
+        sitemap="https://metr.org/sitemap.xml",
+        keep_re=r"^https://metr\.org/blog/[^/]+/?$",
+        base="https://metr.org",
+    ),
+    BlogSource(
         key="senzing", company="Senzing",
         sitemap="https://senzing.com/post-sitemap.xml",
         keep_re=r"^https://senzing\.com/[^/]+/$",
         base="https://senzing.com",
+    ),
+    # Engineering blog on applying database recovery (WAL, UNDO/REDO) to
+    # agent actions. The sitemap currently lists one 2026 post; keep_re is the
+    # dated-slug pattern so later posts are picked up without a registry edit.
+    BlogSource(
+        key="onewill", company="OneWill",
+        sitemap="https://onewill.ai/sitemap.xml",
+        keep_re=r"^https://onewill\.ai/blog/\d{4}/[^/]+/?$",
+        base="https://onewill.ai",
+        # The visual H1 is two <span class="title-line">s with no space between
+        # "of" and "Database"; og:title / <title> keep the real wording.
+        title_xpath='//meta[@property="og:title"]/@content',
+    ),
+    # Explicit URLs only — CACM Blog@CACM has no useful sitemap for this slice,
+    # and the live HTML is often Cloudflare-blocked from datacenter IPs. Prefer
+    # the live post; fall back to a Wayback snapshot of the same article.
+    # Pairs with scripts/gap-agentic-sql.py (papers) and Outbox/agentic-sql-reliability/.
+    BlogSource(
+        key="stonebraker-cacm", company="Michael Stonebraker (CACM)",
+        urls=[
+            # Live CACM Blog@CACM (Cloudflare may block datacenter IPs).
+            "https://cacm.acm.org/blogcacm/if-you-think-you-can-do-real-world-text-to-sql/",
+            # Wayback fallback of the same article.
+            "https://web.archive.org/web/20250701000000/"
+            "https://cacm.acm.org/blogcacm/if-you-think-you-can-do-real-world-text-to-sql/",
+            # Adjacent Stonebraker CACM blog on schema/enterprise decay.
+            "https://cacm.acm.org/blogcacm/database-decay-and-what-to-do-about-it/",
+            "https://web.archive.org/web/2020/"
+            "https://cacm.acm.org/blogcacm/database-decay-and-what-to-do-about-it/",
+        ],
+        base="https://cacm.acm.org",
+        title_xpath='//meta[@property="og:title"]/@content | //h1',
+        min_chars=400,
     ),
 ]
 
@@ -225,25 +372,48 @@ def _redirected_off_article(url: str, final_url: str) -> bool:
 def discover(session: requests.Session, src: BlogSource) -> list[str]:
     keep = re.compile(src.keep_re) if src.keep_re else None
     drop = re.compile(src.drop_url_re) if src.drop_url_re else None
-    urls: list[str] = []
+    urls: list[str] = list(src.urls)
     sitemaps = src.sitemaps or ([src.sitemap] if src.sitemap else [])
     if sitemaps:
-        for sm in sitemaps:
+        queue, visited = list(sitemaps), set()
+        while queue:
+            sm = queue.pop(0)
+            if sm in visited:
+                continue
+            visited.add(sm)
             r = session.get(sm, timeout=TIMEOUT)
             r.raise_for_status()
-            urls += re.findall(r"<loc>\s*([^<]+?)\s*</loc>", r.text)
-    elif src.index_url:
-        doc, _ = _fetch_doc(session, src.index_url)
-        hrefs = doc.xpath("//a[@href]")
-        urls = [a.get("href") for a in hrefs]
+            locs = re.findall(r"<loc>\s*([^<]+?)\s*</loc>", r.text)
+            if src.recursive_sitemaps and re.search(r"<sitemapindex\b", r.text, re.I):
+                queue.extend(locs)
+            else:
+                urls.extend(locs)
+    else:
+        queue = list(src.index_urls or ([src.index_url] if src.index_url else []))
+        visited: set[str] = set()
+        while queue and len(visited) < src.max_index_pages:
+            page_url = queue.pop(0)
+            if page_url in visited:
+                continue
+            visited.add(page_url)
+            doc, final_url = _fetch_doc(session, page_url)
+            urls.extend(urljoin(final_url, a.get("href"))
+                        for a in doc.xpath("//a[@href]") if a.get("href"))
+            if src.next_xpath:
+                for href in doc.xpath(src.next_xpath):
+                    raw = href if isinstance(href, str) else href.get("href")
+                    if raw:
+                        nxt = urljoin(final_url, raw)
+                        if nxt not in visited:
+                            queue.append(nxt)
     out, seen = [], set()
     for u in urls:
         u = u.strip()
-        if keep and not keep.match(u):
+        full = u if u.startswith("http") else urljoin(src.base.rstrip("/") + "/", u)
+        if keep and not (keep.match(u) or keep.match(full)):
             continue
         if drop and drop.search(u):
             continue
-        full = u if u.startswith("http") else src.base.rstrip("/") + u
         if full not in seen:
             seen.add(full)
             out.append(full)
@@ -273,6 +443,32 @@ def _pick_content(doc):
         return max(cands, key=_p_chars)
     body = doc.xpath("//body")
     return body[0] if body else doc
+
+
+def _serialized_markdown(doc) -> str:
+    """Recover article HTML embedded in a client-rendered app's script payload.
+
+    Some React/Next sites return only headings in the rendered tree while the
+    full server-component body is serialized as ``\\u003cp\\u003e...``. Decode
+    only JSON's structural escapes (not arbitrary unicode escapes), parse each
+    payload, and keep the richest resulting content node.
+    """
+    best = ""
+    for script in doc.xpath("//script"):
+        raw = script.text or ""
+        if "\\u003c" not in raw:
+            continue
+        decoded = (raw.replace("\\u003c", "<").replace("\\u003e", ">")
+                   .replace("\\u0026", "&").replace('\\"', '"')
+                   .replace("\\n", "\n").replace("\\/", "/"))
+        try:
+            payload = H.fromstring(decoded)
+            md = html_to_markdown(_pick_content(payload))
+        except Exception:
+            continue
+        if len(md) > len(best):
+            best = md
+    return best
 
 
 def _categories_of(doc, category_xpath: str) -> list[str]:
@@ -333,19 +529,32 @@ def import_source(session, src: BlogSource, limit, delay, dry_run) -> dict:
     for url in urls:
         if limit and n >= limit:
             break
-        try:
-            doc, final_url = _fetch_doc(session, url)
-        except Exception as exc:
-            dropped.append((url, f"fetch-fail {exc}"))
-            continue
-        if _redirected_off_article(url, final_url):
-            dropped.append((url, f"redirected off the article -> {final_url}"))
-            continue
-        title = _title_of(doc, src.title_xpath)
+        if src.raw_markdown:
+            try:
+                response = session.get(url, timeout=TIMEOUT)
+                response.raise_for_status()
+                md = response.text
+            except Exception as exc:
+                dropped.append((url, f"fetch-fail {exc}"))
+                continue
+            final_url = response.url
+            title_match = re.search(r"(?m)^#\s+(.+?)\s*$", md)
+            title = src.title_override or (title_match.group(1) if title_match else "")
+            doc = None
+        else:
+            try:
+                doc, final_url = _fetch_doc(session, url)
+            except Exception as exc:
+                dropped.append((url, f"fetch-fail {exc}"))
+                continue
+            if _redirected_off_article(url, final_url):
+                dropped.append((url, f"redirected off the article -> {final_url}"))
+                continue
+            title = src.title_override or _title_of(doc, src.title_xpath)
         if not title:
             dropped.append((url, "no-title"))
             continue
-        if drop_cat and src.category_xpath:
+        if doc is not None and drop_cat and src.category_xpath:
             cats = _categories_of(doc, src.category_xpath)
             hit = [c for c in cats if drop_cat.search(c)]
             if hit:
@@ -360,8 +569,13 @@ def import_source(session, src: BlogSource, limit, delay, dry_run) -> dict:
             skipped.append(title)
             n += 1
             continue
-        node = _pick_content(doc)
-        md = html_to_markdown(node)
+        if doc is not None:
+            node = _pick_content(doc)
+            md = html_to_markdown(node)
+            if len(md) < src.min_chars:
+                serialized = _serialized_markdown(doc)
+                if len(serialized) > len(md):
+                    md = serialized
         if len(md) < src.min_chars:
             dropped.append((title, f"too-short ({len(md)}c)"))
             continue

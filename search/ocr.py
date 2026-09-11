@@ -12,7 +12,7 @@ Inference runs in a **separate interpreter** (`config.OCR_PYTHON`, a venv holdin
 `mlx-vlm` + `pypdfium2`) driven as a worker subprocess, so this venv stays free of
 a GPU stack. The default model, `PaddleOCR-VL-1.5` converted to MLX, runs on
 Metal at ~300 tok/s ≈ 5 s/page on an M4 Max: nothing leaves the machine, which is
-what makes the stage usable on `Literature/Celonis Internal/` documents at all.
+what makes the stage usable on `Internal/` documents at all.
 
 Usage::
 

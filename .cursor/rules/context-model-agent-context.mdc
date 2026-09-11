@@ -1,51 +1,80 @@
 ---
-description: Local Context Model documentation wiki for agent context (reference checkout).
+description: Celonis reference checkouts under reference/ — how to find and search them, and where the Context Model wiki sits among them.
 alwaysApply: true
 ---
 
-# Context Model agent context
+# Celonis reference checkouts
 
-A local checkout of the Celonis Context Model documentation wiki lives under the **gitignored `reference/celonis/` folder** at the root of the knowledge repository, alongside a few sibling Celonis reference checkouts:
+The knowledge repository keeps **33 independent Celonis and upstream repository checkouts** under
+the **gitignored `reference/` folder** (`~/docs/reference/`). Each has its own `.git`, is pulled
+separately, and is **reference only** — never commit them from here.
 
-`reference/celonis/context-model-documentation/`  (absolute: `~/docs/reference/celonis/context-model-documentation/`)
+## Finding them: read `REFERENCE.md` first
 
-- **Remote:** https://github.com/celonis/context-model-documentation
-- **Purpose:** Directional wiki for the Context Model project (codename `pig-sl`) — vision, architecture, component model, decisions, and observed materials.
-- **Reference only.** It has its own independent `.git`, is gitignored by this project, and must not be committed from here.
+**`~/docs/REFERENCE.md` is the routing table.** Consult it before searching for anything about
+Celonis internals. It lists every checkout grouped by purpose, what each one answers, the terms
+worth grepping for, its top-level directories, and a read order where one exists.
 
-Sibling checkouts under `reference/celonis/` (also gitignored, own `.git`, reference only):
-
-- `studio-platform-hq/` — [celonis/studio-platform-hq](https://github.com/celonis/studio-platform-hq): Studio Platform team knowledge base — per-initiative `projects/` (multi-user-collaboration, isolated-asset-rendering, granular-asset-permissions, context-model, …) plus a cross-cutting `knowledge/wiki/` (arch, components, operations, postmortems). Deep source on Studio asset locking, package branching, permissions, and the web-fragments migration.
-- `pm-solutions/` — [celonis/pm-solutions](https://github.com/celonis/pm-solutions) (default branch `setup`): Process Mining Solutions team miscellaneous code (e.g. the OGDF/SPQR block-structure discovery pipeline).
-- `pmi-latex-collection/` — [celonis/pmi-latex-collection](https://github.com/celonis/pmi-latex-collection): internal LaTeX documents of the Process Mining Innovation team.
-- `pm-prototyping-env/` — [celonis/pm-prototyping-env](https://github.com/celonis/pm-prototyping-env): Object-Centric Data Model (OCDM) prototyping environment.
-
-`reference/` also holds non-Celonis upstream checkouts under the same rules (own `.git`, gitignored, reference only): `bitol/open-data-contract-standard/` and `bitol/open-data-product-standard/` (the ODCS/ODPS standards) and `databrickslabs/ontos/` (a Unity Catalog business catalog implementing them). Their documentation is also imported into `Literature/`; see `~/docs/README.md`.
-
-> Tip: root an agent session at `~/docs` to browse the whole knowledge repository (Literature, Inbox, and these Celonis reference checkouts). See `~/docs/README.md`.
-
-## When to use it
-
-Consult this checkout when the task involves Context Model, pig-sl, PI Graph, Perspectives, Functions, Object Types, Event Sources, or related Celonis platform semantics.
-
-For Studio *platform* engineering topics — asset locking, package branching, granular permissions, the web-fragments/asset-fragment migration, package-manager/pacman internals, incidents/postmortems — consult the sibling `studio-platform-hq/` checkout (its `projects/*/knowledge/` and top-level `knowledge/wiki/`). Its `projects/context-model/` overlaps with this wiki from the platform side.
-
-Read `reference/celonis/context-model-documentation/AGENTS.md` before making substantive changes inside that checkout.
-
-## Orientation (read order)
-
-1. `reference/celonis/context-model-documentation/README.md`
-2. `reference/celonis/context-model-documentation/1-direction-and-vision/`
-3. `reference/celonis/context-model-documentation/2-architecture/`
-4. `reference/celonis/context-model-documentation/3-context-model/`
-5. `reference/celonis/context-model-documentation/4-decisions/`
-6. `reference/celonis/context-model-documentation/5-observed-materials/`
-
-Do **not** auto-load `y-synthesized-documents/` unless a human explicitly references a file there.
-
-## Updating the checkout
+This matters because `reference/` is gitignored: **`Glob` and `Grep` return nothing for it**, and
+the repository's DuckDB search index does not cover it. Search the checkouts with `rg` directly,
+aimed by `REFERENCE.md`:
 
 ```bash
-git -C ~/docs/reference/celonis/context-model-documentation pull --ff-only
-git -C ~/docs/reference/celonis/studio-platform-hq pull --ff-only
+rg -i --glob '*.md' 'asset lock' ~/docs/reference/celonis/
+rg -il 'architecture decision' ~/docs/reference/celonis/architecture/
 ```
+
+The groups, in short — full detail in `REFERENCE.md`:
+
+- **Context Model & semantic layer** — `context-model-documentation`, `pm-solutions`, `pmi-latex-collection`, `pm-prototyping-env`.
+- **Engineering-wide** — `documentation-engineering-central` (Engineering Central: SDLC, change management, platform freezes, testing, onboarding), `architecture` (EMS platform ADRs), `engineering.celonis.com`, `agentic-sdlc-documentation`, `backstage-resources` (the Roadie/Backstage service catalog), `repo-depot` (golden-path CI).
+- **Operations & SRE** — `sre-documentation`, `runbooks`, `data-pipeline-runbooks`, `platform-docs`.
+- **Team & stream wikis** — `studio-platform-hq`, `studio-platform-documentation`, `saola-wiki`, `celostar-wiki`, `celoai-documentation` (AI Gateway), `metadata-platform-docs`, `cpm-engineering-documentation`, `cpm-migration-project`.
+- **Standards** — `restful-api-guidelines`, `kubernetes-best-practices`, `landing-zone-adrs`, `pne-website`.
+- **Knowledge & AI infrastructure** — `cloud-knowledge-lake`, `business-knowledge-context`, `quantum-brain`, `wiki-hq`.
+- **Upstream** — `bitol/open-data-contract-standard`, `bitol/open-data-product-standard` (ODCS/ODPS), `databrickslabs/ontos`.
+
+## When the answer is not on disk
+
+Ask the **Knowledge Lake** — the Milvus-backed RAG service over Confluence, Jira, Slack, Drive,
+Cortex, `docs.celonis.com`, the Roadie catalog and several hundred further repositories. Its
+engineering profile is **DeveloperAssist** (Slack `#ask-developer-assist`); its agent surface is a
+remote MCP server. Setup, topics and sharing rules:
+`reference/celonis/cloud-knowledge-lake/docs/knowledge-lake-mcp-quick-start.md`, summarised in
+`~/docs/README.md`. The `studio-mcp` server's `search_knowledge_lake` tool covers **public product
+documentation only** — it is not the internal corpus.
+
+## Context Model (`context-model-documentation/`)
+
+`reference/celonis/context-model-documentation/` — [celonis/context-model-documentation](https://github.com/celonis/context-model-documentation).
+Directional wiki for the Context Model project (codename `pig-sl`): vision, architecture, component
+model, decisions, observed materials.
+
+Consult it when the task involves Context Model, pig-sl, PI Graph, Perspectives, Functions, Object
+Types, Event Sources, or related Celonis platform semantics. Read order:
+
+1. `README.md`
+2. `1-direction-and-vision/`
+3. `2-architecture/`
+4. `3-context-model/`
+5. `4-decisions/`
+6. `5-observed-materials/`
+
+Do **not** auto-load `y-synthesized-documents/` unless a human explicitly references a file there.
+Read the checkout's `AGENTS.md` before making substantive changes inside it.
+
+For Studio *platform* engineering topics — asset locking, package branching, granular permissions,
+the web-fragments/asset-fragment migration, package-manager/pacman internals, incidents and
+postmortems — use `studio-platform-hq/` (`knowledge/wiki/` and `projects/*/knowledge/`). Its
+`projects/context-model/` overlaps with this wiki from the platform side.
+
+## Updating the checkouts
+
+```bash
+cd ~/docs && scripts/.venv/bin/python scripts/reference-repos.py sync    # clone missing, pull all, regenerate REFERENCE.md
+cd ~/docs && scripts/.venv/bin/python scripts/reference-repos.py status  # branch / commit / dirty state
+```
+
+The set is declared in `scripts/reference-repos.json`; add a repository there rather than cloning
+by hand, then re-run `sync`. A single checkout still updates with
+`git -C ~/docs/reference/<org>/<repo> pull --ff-only`.

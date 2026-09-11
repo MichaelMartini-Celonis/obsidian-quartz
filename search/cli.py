@@ -4,6 +4,7 @@ Run from ~/docs, e.g.:
 
     scripts/.venv/bin/python -m search.cli index --limit 20
     scripts/.venv/bin/python -m search.cli search "object-centric process discovery"
+    scripts/.venv/bin/python -m search.cli --db meet search "event handling"
     scripts/.venv/bin/python -m search.cli stats
 """
 
@@ -20,7 +21,7 @@ from . import query as querymod
 from .embeddings import get_embedder
 
 
-def _roots(names: list[str] | None):
+def _roots(names: list[str] | None, db_alias: str | None = None):
     mapping = {
         "literature": config.LITERATURE_DIR,
         "transcripts": config.TRANSCRIPTS_DIR,
@@ -28,19 +29,40 @@ def _roots(names: list[str] | None):
         "db_systems": config.DB_SYSTEMS_DIR,
         "outbox": config.OUTBOX_DIR,
         "inbox": config.INBOX_DIR,
+        "internal": config.INTERNAL_DIR,
+        "personal": config.PERSONAL_DRIVE_DIR,
+        "meet": config.MEET_NOTES_DIR,
     }
     if not names:
-        return [config.LITERATURE_DIR, config.TRANSCRIPTS_DIR,
-                config.NOTEBOOKS_DIR, config.DB_SYSTEMS_DIR, config.OUTBOX_DIR]
+        if (db_alias or "") in ("meet", "meetings"):
+            return [config.MEET_NOTES_DIR]
+        return [
+            config.LITERATURE_DIR, config.TRANSCRIPTS_DIR, config.NOTEBOOKS_DIR,
+            config.DB_SYSTEMS_DIR, config.OUTBOX_DIR, config.INTERNAL_DIR,
+            config.PERSONAL_DRIVE_DIR,
+        ]
     return [mapping[n] for n in names]
 
 
 def cmd_index(args) -> int:
+    alias = args.db or ""
+    roots = set(args.roots or [])
+    meet_db = alias in ("meet", "meetings")
+    if meet_db and roots - {"meet"}:
+        print("error: --db meet only accepts --roots meet", file=sys.stderr)
+        return 2
+    if not meet_db and "meet" in roots:
+        print("error: Personal/meet belongs in search/meet.duckdb; use --db meet",
+              file=sys.stderr)
+        return 2
+    if meet_db:
+        config.DB_PATH = config.MEET_DB_PATH
     embedder = get_embedder()
     con = dbmod.connect()
     try:
         stats = indexmod.build_index(
-            con, embedder, _roots(args.roots), limit=args.limit, reset=args.reset
+            con, embedder, _roots(args.roots, alias),
+            limit=args.limit, reset=args.reset
         )
     finally:
         con.close()
@@ -203,7 +225,7 @@ def cmd_stats(args) -> int:
     print(f"documents: {docs}")
     print(f"chunks:    {chunks}")
     print(f"needs_review: {review}")
-    print(f"internal (Celonis): {internal}")
+    print(f"internal:  {internal}")
     print(f"embedder:  {model[0] if model else '?'} (dim {dim[0] if dim else '?'})")
     print("top topics:")
     for topic, n in by_topic:
@@ -213,12 +235,16 @@ def cmd_stats(args) -> int:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="search", description="Graph-RAG search over ~/docs")
+    parser.add_argument(
+        "--db", default=None,
+        help="DuckDB file, or alias: main (default, includes Internal + Personal/drive) | meet (Personal/meet only)",
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_index = sub.add_parser("index", help="ingest files into the index")
     p_index.add_argument("--roots", nargs="*",
                          choices=["literature", "transcripts", "notebooks", "db_systems",
-                                  "outbox", "inbox"])
+                                  "outbox", "inbox", "internal", "personal", "meet"])
     p_index.add_argument("--limit", type=int, default=None, help="max files to process")
     p_index.add_argument("--reset", action="store_true", help="drop and rebuild the index")
     p_index.set_defaults(func=cmd_index)
@@ -230,9 +256,9 @@ def main(argv=None) -> int:
                           help="add graph-expanded (related) results")
     g_internal = p_search.add_mutually_exclusive_group()
     g_internal.add_argument("--internal-only", action="store_true",
-                            help="only Celonis-internal documents")
+                            help="only Internal/ and Personal/ documents")
     g_internal.add_argument("--external-only", action="store_true",
-                            help="exclude Celonis-internal documents")
+                            help="exclude Internal/ and Personal/ documents")
     p_search.set_defaults(func=cmd_search)
 
     p_enrich = sub.add_parser("enrich", help="LLM-clean metadata via the AI Gateway")
@@ -287,6 +313,7 @@ def main(argv=None) -> int:
     p_stats.set_defaults(func=cmd_stats)
 
     args = parser.parse_args(argv)
+    config.DB_PATH = config.resolve_db_path(args.db)
     return args.func(args)
 
 

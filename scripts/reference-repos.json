@@ -1,0 +1,320 @@
+{
+  "root": "reference",
+  "groups": [
+    {
+      "id": "celonis-context-model",
+      "title": "Context Model & semantic layer",
+      "blurb": "The `pig-sl` semantic-layer programme: direction, architecture, decisions, and the prototyping/solution code around it."
+    },
+    {
+      "id": "celonis-engineering-wide",
+      "title": "Engineering-wide documentation",
+      "blurb": "Department-level sources of truth: how Celonis Engineering builds, reviews, deploys and decides. Start here for a question that is not owned by one team."
+    },
+    {
+      "id": "celonis-operations",
+      "title": "Operations, SRE & runbooks",
+      "blurb": "What to do when something is on fire, and how the platform is run day to day."
+    },
+    {
+      "id": "celonis-team-wikis",
+      "title": "Team & stream wikis",
+      "blurb": "Per-team knowledge bases. Same shape as `studio-platform-hq`: a `knowledge/` or `docs/` tree plus per-initiative project folders."
+    },
+    {
+      "id": "celonis-standards",
+      "title": "Standards & guidelines",
+      "blurb": "Normative engineering rules — API design, Kubernetes, architecture decision logs."
+    },
+    {
+      "id": "celonis-knowledge-ai",
+      "title": "Knowledge & AI infrastructure",
+      "blurb": "The systems that ingest and serve Celonis internal knowledge, including the Knowledge Lake / CeloAssist / DeveloperAssist stack this repository can query."
+    },
+    {
+      "id": "standards-upstream",
+      "title": "Upstream open-source standards",
+      "blurb": "Non-Celonis checkouts whose documentation is also imported into `Literature/`; kept on disk for the schemas, validators and git history the markdown import drops."
+    }
+  ],
+  "repos": [
+    {
+      "path": "celonis/context-model-documentation",
+      "remote": "https://github.com/celonis/context-model-documentation",
+      "branch": "main",
+      "group": "celonis-context-model",
+      "what": "Directional wiki for the Context Model project (codename `pig-sl`): vision, architecture, component model, decisions, observed materials.",
+      "ask_it_about": ["Context Model", "pig-sl", "PI Graph", "Perspectives", "Object Types", "Event Sources", "Functions", "LLM wikis", "embedded agents"],
+      "read_order": ["README.md", "1-direction-and-vision/", "2-architecture/", "3-context-model/", "4-decisions/", "5-observed-materials/"],
+      "notes": "Do not auto-load `y-synthesized-documents/` unless a human names a file there. Read its `AGENTS.md` before making changes inside the checkout."
+    },
+    {
+      "path": "celonis/pm-solutions",
+      "remote": "https://github.com/celonis/pm-solutions",
+      "branch": "setup",
+      "group": "celonis-context-model",
+      "what": "Process Mining Solutions team miscellaneous code (e.g. the OGDF/SPQR block-structure discovery pipeline).",
+      "ask_it_about": ["block structure", "SPQR", "OGDF", "discovery prototypes"]
+    },
+    {
+      "path": "celonis/pmi-latex-collection",
+      "remote": "https://github.com/celonis/pmi-latex-collection",
+      "branch": "main",
+      "group": "celonis-context-model",
+      "what": "Internal LaTeX documents of the Process Mining Innovation team.",
+      "ask_it_about": ["PMI team papers", "internal write-ups", "LaTeX sources"]
+    },
+    {
+      "path": "celonis/pm-prototyping-env",
+      "remote": "https://github.com/celonis/pm-prototyping-env",
+      "branch": "main",
+      "group": "celonis-context-model",
+      "what": "Object-Centric Data Model (OCDM) prototyping environment: Data Model Picker, Process Configurator, filtering framework, Case Designer.",
+      "ask_it_about": ["OCDM", "object-centric data model", "case designer", "data model picker"]
+    },
+
+    {
+      "path": "celonis/documentation-engineering-central",
+      "remote": "https://github.com/celonis/documentation-engineering-central",
+      "branch": "main",
+      "group": "celonis-engineering-wide",
+      "what": "Engineering Central — the Engineering department's single source of truth for general engineering information: SDLC, change management, platform freezes, testing, onboarding, local development, developing with AI.",
+      "ask_it_about": ["SDLC", "change management", "deployment process", "platform freeze", "release process", "onboarding", "e2e regression testing", "developing with AI", "local development", "run a production service"],
+      "read_order": ["README.md", "docs/sdlc/", "docs/change-management/", "docs/how-to/", "docs/architecture/"]
+    },
+    {
+      "path": "celonis/architecture",
+      "remote": "https://github.com/celonis/architecture",
+      "branch": "main",
+      "group": "celonis-engineering-wide",
+      "what": "Documentation and Architecture Decision Records for the Celonis EMS Platform.",
+      "ask_it_about": ["ADR", "architecture decision record", "EMS platform architecture", "why was X chosen", "platform design"]
+    },
+    {
+      "path": "celonis/engineering.celonis.com",
+      "remote": "https://github.com/celonis/engineering.celonis.com",
+      "branch": "main",
+      "group": "celonis-engineering-wide",
+      "what": "Content of the Celonis Engineering microsite — the public-facing narrative of how Engineering works.",
+      "ask_it_about": ["engineering culture", "engineering microsite", "public engineering posts"]
+    },
+    {
+      "path": "celonis/agentic-sdlc-documentation",
+      "remote": "https://github.com/celonis/agentic-sdlc-documentation",
+      "branch": "main",
+      "group": "celonis-engineering-wide",
+      "what": "Celonis' context and skill foundation for autonomous SDLC — the house style for agent skills, rules and agent-in-the-loop development.",
+      "ask_it_about": ["agentic SDLC", "agent skills", "Cursor rules", "AI-assisted development standards"]
+    },
+    {
+      "path": "celonis/backstage-resources",
+      "remote": "https://github.com/celonis/backstage-resources",
+      "branch": "main",
+      "group": "celonis-engineering-wide",
+      "what": "Source of truth about Backstage/Roadie resources — the service-catalog entities behind celonis.roadie.so (Celodrome) and its TechDocs.",
+      "ask_it_about": ["Roadie", "Backstage", "Celodrome", "service catalog", "catalog-info.yaml", "component ownership", "who owns service X", "TechDocs"],
+      "notes": "Roadie itself is hosted Backstage (https://celonis.roadie.so, also https://www.celonis.dev), not a repository. This checkout plus each service's own `catalog-info.yaml` / `.roadierc` is the closest on-disk equivalent."
+    },
+    {
+      "path": "celonis/repo-depot",
+      "remote": "https://github.com/celonis/repo-depot",
+      "branch": "main",
+      "group": "celonis-engineering-wide",
+      "what": "Shared GitHub Actions workflows — the golden-path CI/CD every Celonis service repository calls into.",
+      "ask_it_about": ["reusable workflow", "CI pipeline", "GitHub Actions", "build and release", "pinata", "golden path"]
+    },
+
+    {
+      "path": "celonis/sre-documentation",
+      "remote": "https://github.com/celonis/sre-documentation",
+      "branch": "main",
+      "group": "celonis-operations",
+      "what": "SRE team documentation: reliability practice, on-call, incident handling, observability.",
+      "ask_it_about": ["SRE", "on-call", "incident", "postmortem", "SLO", "error budget", "observability"]
+    },
+    {
+      "path": "celonis/runbooks",
+      "remote": "https://github.com/celonis/runbooks",
+      "branch": "master",
+      "group": "celonis-operations",
+      "what": "Cross-platform operational runbooks — the step-by-step remediations linked from alerts.",
+      "ask_it_about": ["runbook", "alert remediation", "how do I fix", "operational procedure"]
+    },
+    {
+      "path": "celonis/data-pipeline-runbooks",
+      "remote": "https://github.com/celonis/data-pipeline-runbooks",
+      "branch": "main",
+      "group": "celonis-operations",
+      "what": "Runbooks for monitoring and investigating Data Pipeline services, plus ops-cop responsibilities and common mitigations.",
+      "ask_it_about": ["data pipeline incident", "DP ops cop", "extraction failure", "transformation failure"]
+    },
+    {
+      "path": "celonis/platform-docs",
+      "remote": "https://github.com/celonis/platform-docs",
+      "branch": "main",
+      "group": "celonis-operations",
+      "what": "Platform TechDocs — how the underlying Celonis platform (clusters, realms, gateways) is structured and operated.",
+      "ask_it_about": ["realm", "cluster", "gateway", "platform infrastructure", "Kubernetes topology"]
+    },
+
+    {
+      "path": "celonis/studio-platform-hq",
+      "remote": "https://github.com/celonis/studio-platform-hq",
+      "branch": "main",
+      "group": "celonis-team-wikis",
+      "what": "Studio Platform team knowledge base: per-initiative `projects/` (multi-user-collaboration, isolated-asset-rendering, granular-asset-permissions, context-model, …) plus a cross-cutting `knowledge/wiki/` (arch, components, operations, postmortems).",
+      "ask_it_about": ["Studio asset locking", "package branching", "granular asset permissions", "web fragments", "asset fragments", "package manager", "pacman", "Studio postmortems"],
+      "read_order": ["README.md", "knowledge/wiki/", "projects/"]
+    },
+    {
+      "path": "celonis/studio-platform-documentation",
+      "remote": "https://github.com/celonis/studio-platform-documentation",
+      "branch": "main",
+      "group": "celonis-team-wikis",
+      "what": "Documentation owned by the CMP (Content Management Platform) team — the published counterpart to `studio-platform-hq`.",
+      "ask_it_about": ["CMP", "content management platform", "Studio packages", "asset lifecycle"]
+    },
+    {
+      "path": "celonis/saola-wiki",
+      "remote": "https://github.com/celonis/saola-wiki",
+      "branch": "main",
+      "group": "celonis-team-wikis",
+      "what": "Saola (query engine) team wiki — engine internals, infrastructure, trainings, operations.",
+      "ask_it_about": ["saola", "query engine", "PQL execution", "query engine infrastructure"]
+    },
+    {
+      "path": "celonis/celostar-wiki",
+      "remote": "https://github.com/celonis/celostar-wiki",
+      "branch": "main",
+      "group": "celonis-team-wikis",
+      "what": "Centralized documentation for the Celostar ecosystem (the StarRocks-based analytical stack).",
+      "ask_it_about": ["Celostar", "StarRocks", "OLAP storage", "lakehouse query layer"]
+    },
+    {
+      "path": "celonis/celoai-documentation",
+      "remote": "https://github.com/celonis/celoai-documentation",
+      "branch": "main",
+      "group": "celonis-team-wikis",
+      "what": "Org-wide developer-facing documentation for the CeloAI team — the AI Gateway, model access and AI platform services.",
+      "ask_it_about": ["AI Gateway", "ai.celonis.dev", "celai", "LLM access", "model routing", "CeloAI"],
+      "notes": "This is the documentation behind `search/llm.py`, which authenticates to the gateway with `celai get api-key`."
+    },
+    {
+      "path": "celonis/metadata-platform-docs",
+      "remote": "https://github.com/celonis/metadata-platform-docs",
+      "branch": "main",
+      "group": "celonis-team-wikis",
+      "what": "Metadata Platform documentation — the shared metadata services under the data platform.",
+      "ask_it_about": ["metadata platform", "metadata services", "catalog metadata"]
+    },
+    {
+      "path": "celonis/cpm-engineering-documentation",
+      "remote": "https://github.com/celonis/cpm-engineering-documentation",
+      "branch": "main",
+      "group": "celonis-team-wikis",
+      "what": "Engineering documentation for CPM (the on-premise Celonis Process Mining 4.x product line).",
+      "ask_it_about": ["CPM4", "on-premise Celonis", "legacy process mining product"]
+    },
+    {
+      "path": "celonis/cpm-migration-project",
+      "remote": "https://github.com/celonis/cpm-migration-project",
+      "branch": "main",
+      "group": "celonis-team-wikis",
+      "what": "Documentation for the CPM → EMS migration project.",
+      "ask_it_about": ["CPM migration", "on-prem to cloud migration", "customer migration path"]
+    },
+
+    {
+      "path": "celonis/restful-api-guidelines",
+      "remote": "https://github.com/celonis/restful-api-guidelines",
+      "branch": "celonis",
+      "group": "celonis-standards",
+      "what": "Celonis fork of the Zalando RESTful API guidelines — the normative rules for HTTP API design.",
+      "ask_it_about": ["REST API design", "API guidelines", "naming conventions", "pagination", "error responses", "API versioning"]
+    },
+    {
+      "path": "celonis/kubernetes-best-practices",
+      "remote": "https://github.com/celonis/kubernetes-best-practices",
+      "branch": "main",
+      "group": "celonis-standards",
+      "what": "Celonis Kubernetes best practices.",
+      "ask_it_about": ["Kubernetes", "resource requests", "probes", "workload configuration"]
+    },
+    {
+      "path": "celonis/landing-zone-adrs",
+      "remote": "https://github.com/celonis/landing-zone-adrs",
+      "branch": "main",
+      "group": "celonis-standards",
+      "what": "Curated log of the Landing Zone project's architectural decisions.",
+      "ask_it_about": ["landing zone", "cloud account structure", "infrastructure ADR"]
+    },
+    {
+      "path": "celonis/pne-website",
+      "remote": "https://github.com/celonis/pne-website",
+      "branch": "main",
+      "group": "celonis-standards",
+      "what": "A compilation of PnE (Product & Engineering) best practices as of 2026 and beyond.",
+      "ask_it_about": ["PnE best practices", "product engineering process", "ways of working"]
+    },
+
+    {
+      "path": "celonis/cloud-knowledge-lake",
+      "remote": "https://github.com/celonis/cloud-knowledge-lake",
+      "branch": "main",
+      "group": "celonis-knowledge-ai",
+      "what": "The Knowledge Lake itself — a Python/FastAPI monorepo that extracts, indexes (Milvus, dense + BM25) and serves internal Celonis knowledge over REST, MCP, the CeloAssist Slack bot and the Ask Celonis platform assistant.",
+      "ask_it_about": ["Knowledge Lake", "CeloAssist", "DeveloperAssist", "Ask Celonis", "knowledge topics", "RAG ingestion", "Milvus collections", "MCP knowledge tools", "how to add a knowledge source"],
+      "read_order": ["README.md", "docs/knowledge-lake-mcp-quick-start.md", "data_pipeline/docs/", "data_pipeline/config/sources/"],
+      "notes": "`docs/knowledge-lake-mcp-quick-start.md` is the connection guide; `data_pipeline/config/sources/github-markdown/` shows how a documentation repo is registered as an ingestion source."
+    },
+    {
+      "path": "celonis/business-knowledge-context",
+      "remote": "https://github.com/celonis/business-knowledge-context",
+      "branch": "main",
+      "group": "celonis-knowledge-ai",
+      "what": "Portable business-knowledge context repository for human and agent contributions — business process/domain context packaged for agents.",
+      "ask_it_about": ["business context", "process taxonomy", "domain knowledge for agents"]
+    },
+    {
+      "path": "celonis/quantum-brain",
+      "remote": "https://github.com/celonis/quantum-brain",
+      "branch": "main",
+      "group": "celonis-knowledge-ai",
+      "what": "Single source of truth for spec-driven development and AI-augmented knowledge workflows.",
+      "ask_it_about": ["spec-driven development", "AI knowledge workflow", "specification templates"]
+    },
+    {
+      "path": "celonis/wiki-hq",
+      "remote": "https://github.com/celonis/wiki-hq",
+      "branch": "main",
+      "group": "celonis-knowledge-ai",
+      "what": "Seed template used to kickstart a stream wiki — the skeleton `studio-platform-hq` and its siblings are cut from.",
+      "ask_it_about": ["stream wiki template", "how to start a team wiki", "wiki conventions"]
+    },
+
+    {
+      "path": "bitol/open-data-contract-standard",
+      "remote": "https://github.com/bitol-io/open-data-contract-standard",
+      "branch": "main",
+      "group": "standards-upstream",
+      "what": "ODCS — the Bitol (LF AI & Data) data contract standard: spec pages, JSON Schema v2.2.1 → v3.1.0, example contracts.",
+      "ask_it_about": ["data contract", "ODCS", "contract schema", "data quality rules"]
+    },
+    {
+      "path": "bitol/open-data-product-standard",
+      "remote": "https://github.com/bitol-io/open-data-product-standard",
+      "branch": "main",
+      "group": "standards-upstream",
+      "what": "ODPS — the Bitol data product standard: spec, JSON Schema v0.9.0 → v1.0.0, example products.",
+      "ask_it_about": ["data product", "ODPS", "product schema", "data mesh"]
+    },
+    {
+      "path": "databrickslabs/ontos",
+      "remote": "https://github.com/databrickslabs/ontos",
+      "branch": "development",
+      "group": "standards-upstream",
+      "what": "Ontos — a Business Catalog for Unity Catalog implementing ODCS/ODPS (domains, data products, contracts, compliance DSL, ontology/knowledge graph).",
+      "ask_it_about": ["Unity Catalog", "business catalog", "ontology", "compliance DSL", "ODCS implementation"]
+    }
+  ]
+}

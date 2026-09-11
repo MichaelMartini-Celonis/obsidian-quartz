@@ -316,6 +316,1370 @@
           ]
         }
       ]
+    },
+    "process-simulation": {
+      "title": "Process simulation — data-driven BPS, discrete-event simulation and queueing",
+      "question": "Van der Aalst's 31-10-2025 deck argues that classical queueing assumptions are the wrong model for a business process, that no process is in steady state, and that the way forward is short-term simulation amalgamated with machine learning. Does the collection hold the literature those claims are made against — the queueing theory, the discrete-event simulation methodology, the queue-mining line — or only the process-mining papers that cite them?",
+      "themes": [
+        {
+          "name": "Data-driven business process simulation",
+          "note": "The immediate neighbourhood: discovering a simulation model from an event log. Well covered for 2023+ conference output, so this theme mostly establishes the baseline the others are measured against.",
+          "concepts": [
+            {
+              "label": "Business process simulation (BPS)",
+              "terms": ["business process simulation", "process simulation model", "BPS model"],
+              "probe": "discovering a business process simulation model from an event log",
+              "canonical": ["van der Aalst, 'Business Process Simulation Survival Guide'", "van der Aalst, 'Business Process Simulation Revisited'"]
+            },
+            {
+              "label": "Simod / automated BPS discovery",
+              "terms": ["Simod", "Prosimos", "automated discovery of business process simulation"],
+              "probe": "automated discovery of business process simulation models from event logs",
+              "canonical": [
+                "Camargo, Dumas & González-Rojas, 'Automated discovery of business process simulation models from event logs' (DSS 2020)",
+                "López-Pintado & Dumas, 'Prosimos' / multitasking and availability constraints"
+              ]
+            },
+            {
+              "label": "Deep-learning / generative log simulation",
+              "terms": ["DeepSimulator", "deep generative model of business process", "generative model from event log", "LSTM simulation model"],
+              "probe": "generating event logs with a deep learning model instead of a simulation model",
+              "canonical": [
+                "Camargo, Dumas & González-Rojas, 'Learning Accurate LSTM Models of Business Processes'",
+                "Camargo et al., 'Discovering Generative Models from Event Logs: Data-driven Simulation vs Deep Learning'"
+              ]
+            },
+            {
+              "label": "Agent-based process simulation",
+              "terms": ["AgentSimulator", "agent-based simulation", "multi-agent system simulation of business process", "agent-based modelling"],
+              "probe": "agent-based simulation of a business process learned from event data",
+              "canonical": ["Kirchdorfer et al., 'AgentSimulator' (ICPM 2024)", "Macal & North, 'Tutorial on agent-based modelling and simulation'"]
+            },
+            {
+              "label": "Object-centric simulation",
+              "terms": ["object-centric simulation", "object-centric process simulation", "multi-object simulation model"],
+              "probe": "simulating a process with several interacting object types and n:m relations",
+              "canonical": ["Knopp, Pourbafrani & van der Aalst, 'Discovering Object-Centric Process Simulation Models'", "van der Aalst, 'Object-Centric Simulation: Learning the True Fabric of Operational Processes' (ECMS 2026)"]
+            },
+            {
+              "label": "Simulation-model quality / fidelity",
+              "terms": ["quality of business process simulation models", "simulation model accuracy", "log distance measure", "trust my simulation model"],
+              "probe": "measuring how close a simulated log is to the original event log",
+              "canonical": ["Chapela-Campa et al., 'Can I Trust My Simulation Model?' (BPM 2023)", "Ozdemir et al., 'Rethinking Business Process Simulation: A Utility-Based Evaluation Framework'"]
+            }
+          ]
+        },
+        {
+          "name": "Discrete-event simulation as a discipline",
+          "note": "The methodology the BPS literature inherits and rarely restates: how a DES engine advances time, how many replications an answer needs, and how you know the model is valid. A library that holds only BPS papers has the applications of this and none of it.",
+          "concepts": [
+            {
+              "label": "Discrete-event simulation",
+              "terms": ["discrete event simulation", "discrete-event simulation", "next-event time advance", "event scheduling approach", "three-phase simulation"],
+              "probe": "discrete event simulation future event list advancing simulated time",
+              "canonical": ["Law & Kelton, *Simulation Modeling and Analysis*", "Banks et al., *Discrete-Event System Simulation*", "Nance, 'A History of Discrete Event Simulation Programming Languages'"]
+            },
+            {
+              "label": "Simulation output analysis",
+              "terms": ["simulation output analysis", "replication analysis", "batch means", "confidence interval for the mean response"],
+              "probe": "how many replications are needed and how to build a confidence interval from simulation output",
+              "canonical": ["Nelson, 'The Analysis of Simulation Output Data'", "Law, 'Statistical analysis of simulation output data'"]
+            },
+            {
+              "label": "Warm-up / initialisation bias",
+              "terms": ["initial transient", "warm-up period", "initialization bias", "steady-state simulation"],
+              "probe": "removing the initial transient before measuring steady-state simulation output",
+              "canonical": ["Robinson, 'A statistical process control approach to selecting a warm-up period'", "Welch's procedure"]
+            },
+            {
+              "label": "Variance reduction / common random numbers",
+              "terms": ["common random numbers", "variance reduction technique", "antithetic variates", "control variates"],
+              "probe": "using common random numbers to compare two simulated scenarios",
+              "canonical": ["Glasserman & Yao, 'Some Guidelines and Guarantees for Common Random Numbers'", "Law & Kelton ch. 11"]
+            },
+            {
+              "label": "Verification & validation of simulation models",
+              "terms": ["validation of simulation models", "verification and validation of simulation", "face validity", "accreditation of simulation"],
+              "probe": "how a simulation model is verified and validated against the real system",
+              "canonical": ["Sargent, 'Verification and validation of simulation models'", "Balci on VV&A"]
+            },
+            {
+              "label": "Conceptual modelling / level of abstraction",
+              "terms": ["conceptual modelling for simulation", "conceptual modeling for simulation", "conceptual model of a simulation", "simulation conceptual model", "simulation model simplification", "level of abstraction of a simulation model", "model scoping"],
+              "probe": "choosing the level of abstraction and scope of a simulation model",
+              "canonical": ["Robinson, 'Conceptual modelling for simulation Part I/II'", "Robinson, 'Simulation model simplification'"]
+            },
+            {
+              "label": "Random-variate generation / input modelling",
+              "terms": ["random variate generation", "input modelling", "fitting a probability distribution to data", "inverse transform sampling"],
+              "probe": "fitting and sampling inter-arrival and service time distributions for a simulation",
+              "canonical": ["Devroye, *Non-Uniform Random Variate Generation* (open)", "Law & Kelton ch. 6-8"]
+            }
+          ]
+        },
+        {
+          "name": "Simulation languages and tools",
+          "note": "The tooling history the deck's second slide treats as common knowledge (Simscript 1962 → Simula 1967 → ExSpect 1988 → CPN Tools 1990 → Simul8 1994 → Vensim → AnyLogic). Naming a tool is not holding a work about it.",
+          "concepts": [
+            {
+              "label": "Simula / SIMSCRIPT / GPSS",
+              "note": "A bare 'GPSS' is not usable as a probe: it recurs 49 times in a graph-processing paper in this corpus and 0 times about Gordon's simulator, which is enough to fake a 'covered' verdict on its own. Spelled out instead.",
+              "terms": ["Simula", "SIMSCRIPT", "General Purpose Systems Simulator", "GPSS/H", "simulation programming language"],
+              "probe": "the first simulation programming languages and their design",
+              "canonical": ["Dahl & Nygaard, 'SIMULA: an ALGOL-based simulation language'", "Markowitz et al., *SIMSCRIPT*", "Gordon, 'A general purpose systems simulator' (GPSS)"]
+            },
+            {
+              "label": "SimPy / modern DES libraries",
+              "terms": ["SimPy", "Salabim", "process-interaction simulation library"],
+              "probe": "process-based discrete event simulation library in Python",
+              "canonical": ["Matloff, 'Introduction to Discrete-Event Simulation and the SimPy Language'"]
+            },
+            {
+              "label": "Coloured Petri nets / CPN Tools / ExSpect",
+              "terms": ["CPN Tools", "ExSpect", "EXSPECT", "coloured Petri net", "timed coloured Petri net"],
+              "probe": "timed coloured Petri nets as a simulation formalism and their tooling",
+              "canonical": ["van der Aalst, *Timed coloured Petri nets and their application to logistics* (PhD, 1992)", "Jensen & Kristensen, *Coloured Petri Nets*"]
+            },
+            {
+              "label": "Commercial DES tools",
+              "terms": ["Simul8", "AnyLogic", "FlexSim", "Arena simulation", "Witness simulation"],
+              "probe": "commercial discrete event simulation tools for production and service systems",
+              "canonical": ["Tool surveys in the Winter Simulation Conference proceedings"]
+            },
+            {
+              "label": "System-dynamics tools",
+              "terms": ["Vensim", "Stella simulation", "stock and flow diagram", "causal loop diagram"],
+              "probe": "stock and flow modelling in a system dynamics tool",
+              "canonical": ["Sterman, *Business Dynamics*", "Forrester, *Industrial Dynamics*"]
+            }
+          ]
+        },
+        {
+          "name": "Queueing theory — what slide 21 argues against",
+          "note": "The deck's central technical claim is that the M/M/1 sojourn-time formula is the wrong model and that 'playing with utilization and assumptions you can get any number'. That is only a checkable claim if the formulas are in the library.",
+          "concepts": [
+            {
+              "label": "Kendall notation / M/M/1",
+              "terms": ["M/M/1", "M/G/1", "G/G/1", "Kendall notation", "birth-death queue"],
+              "probe": "M/M/1 queue arrival rate service rate utilization sojourn time",
+              "canonical": ["Kleinrock, *Queueing Systems* vol. 1", "Gross & Harris, *Fundamentals of Queueing Theory*"]
+            },
+            {
+              "label": "Little's law",
+              "terms": ["Little's law", "Littles law", "L = lambda W", "L equals lambda W", "L = λW", "L = W and", "L=λW"],
+              "probe": "Little's law relating work in progress throughput and cycle time",
+              "canonical": ["Little, 'A Proof for the Queuing Formula: L = λW' (1961)", "Little, 'Little's Law as Viewed on its 50th Anniversary' (2011)"]
+            },
+            {
+              "label": "Pollaczek–Khinchine / Lindley recursion",
+              "terms": ["Pollaczek", "Khinchine", "Khintchine", "Pollaczek-Khinchine", "Lindley recursion", "Lindley equation"],
+              "probe": "mean waiting time in an M/G/1 queue as a function of service time variability",
+              "canonical": ["Lindley, 'The theory of queues with a single server' (1952)", "the P-K mean-value formula"]
+            },
+            {
+              "label": "Kingman / heavy-traffic approximation",
+              "terms": ["Kingman", "heavy traffic approximation", "heavy-traffic limit", "diffusion approximation for queues"],
+              "probe": "heavy traffic approximation for the waiting time of a single server queue",
+              "canonical": ["Kingman, 'The single server queue in heavy traffic' (1961)", "Whitt's heavy-traffic surveys"]
+            },
+            {
+              "label": "Queueing networks (Jackson / BCMP)",
+              "terms": ["Jackson network", "BCMP", "product form solution", "queueing network", "mean value analysis"],
+              "probe": "open and closed queueing networks with product-form solutions",
+              "canonical": ["Jackson, 'Jobshop-Like Queueing Systems' (1963)", "Baskett, Chandy, Muntz & Palacios, 'Open, Closed, and Mixed Networks of Queues' (1975)"]
+            },
+            {
+              "label": "Infinite-server / M/G/∞",
+              "terms": ["infinite server", "infinite-server", "M/G/infinity", "M/G/∞", "delay model queue"],
+              "probe": "infinite server queue as a model with no waiting for a free resource",
+              "canonical": ["Whitt on infinite-server approximations", "the deck's recommendation 6 rests on this model"]
+            },
+            {
+              "label": "Abandonment / Erlang A / call centres",
+              "terms": ["Erlang A", "Erlang C", "customer abandonment", "reneging customers", "call center queueing"],
+              "probe": "queueing models of call centres with impatient customers who abandon",
+              "canonical": ["Gans, Koole & Mandelbaum, 'Telephone Call Centers: Tutorial, Review, and Research Prospects'", "Brown et al., 'Statistical Analysis of a Telephone Call Center'"]
+            },
+            {
+              "label": "Scheduling disciplines / heavy tails",
+              "terms": ["processor sharing", "shortest remaining processing time", "SRPT", "heavy-tailed service times", "size-based scheduling"],
+              "probe": "how the queue discipline and heavy-tailed service times change response time",
+              "canonical": ["Harchol-Balter, *Performance Modeling and Design of Computer Systems* (open drafts)", "Bansal & Harchol-Balter on SRPT"]
+            },
+            {
+              "label": "Fluid / mean-field approximation",
+              "terms": ["fluid approximation", "fluid limit", "fluid model", "mean-field approximation of queue"],
+              "probe": "fluid and mean-field approximations of many-server queues",
+              "canonical": ["Whitt, 'Fluid Models for Multiserver Queues with Abandonments'"]
+            },
+            {
+              "label": "PASTA / sampling in queues",
+              "note": "The acronym alone matches unrelated tooling names in this corpus, so only the spelled-out theorem counts.",
+              "terms": ["Poisson arrivals see time averages", "inspection paradox", "waiting time paradox"],
+              "probe": "Poisson arrivals see time averages and the inspection paradox",
+              "canonical": ["Wolff, 'Poisson Arrivals See Time Averages' (1982)"]
+            }
+          ]
+        },
+        {
+          "name": "Queue mining and resource behaviour",
+          "note": "The empirical counterpart: recovering queues, congestion and resource speeds from event data rather than assuming them. This is the bridge between the two halves and the deck's 'link to ML'.",
+          "concepts": [
+            {
+              "label": "Queue mining",
+              "terms": ["queue mining", "discovering queues from event logs", "delay prediction in service processes"],
+              "probe": "mining queues and predicting delay from an event log",
+              "canonical": ["Senderovich et al., 'Queue Mining: Predicting Delays in Service Processes' (CAiSE 2014)", "Senderovich et al., 'Queue mining for delay prediction in multi-class service processes' (IS 2015)"]
+            },
+            {
+              "label": "Congestion graphs / scheduled processes",
+              "terms": ["congestion graph", "scheduled process", "data-driven performance analysis of scheduled processes"],
+              "probe": "congestion graphs for automated time prediction in a scheduled process",
+              "canonical": ["Senderovich, Beck, Gal & Weidlich, 'Congestion Graphs for Automated Time Predictions'"]
+            },
+            {
+              "label": "Workload-dependent processing speed",
+              "terms": ["Yerkes-Dodson", "workload-dependent", "workload dependent processing speed", "impact of workload on process performance"],
+              "probe": "resources work faster or slower depending on the workload present",
+              "canonical": ["Nakatumba & van der Aalst, 'Analyzing Resource Behavior Using Process Mining'", "Nakatumba, Westergaard & van der Aalst, 'Generating Event Logs with Workload-Dependent Speeds'"]
+            },
+            {
+              "label": "Batching and shared resources",
+              "terms": ["batch processing behaviour", "batching in business processes", "shared resources and queues", "resource contention in event logs"],
+              "probe": "detecting batching and shared-resource contention from event data",
+              "canonical": ["Martin et al. on batch processing discovery", "Fahland, Denisov & van der Aalst, 'Inferring Unobserved Events in Systems with Shared Resources and Queues'"]
+            },
+            {
+              "label": "Resource availability / timetables / multitasking",
+              "terms": ["resource calendar", "multitasking behavior", "intermittent resource availability", "resource timetable discovery"],
+              "probe": "discovering resource calendars availability and multitasking from event logs",
+              "canonical": ["López-Pintado & Dumas on multitasking and availability constraints", "Estrada-Torres et al. on multitasking"]
+            }
+          ]
+        },
+        {
+          "name": "Operational use: short-term simulation, digital twins, comparison",
+          "note": "The deck's recommendations. Short-term simulation ('start from the current state') is a 2008-2010 idea it wants revived, and comparative process mining is the capability it says the competition already ships.",
+          "concepts": [
+            {
+              "label": "Short-term simulation",
+              "terms": ["short-term simulation", "short term simulation", "transient simulation from current state", "operational decision support simulation"],
+              "probe": "starting a simulation from the current state to predict the next hour or day",
+              "canonical": ["Rozinat et al., 'Workflow Simulation for Operational Decision Support Using Design, Historic and State Information'", "Reijers & van der Aalst, 'Short-Term Simulation'"]
+            },
+            {
+              "label": "Digital twin of an organization",
+              "terms": ["digital twin of an organization", "digital twin of organizations", "DTO", "action-oriented process mining"],
+              "probe": "a digital twin of an organization built from process mining",
+              "canonical": ["van der Aalst, Hinz & Weinhardt on digital twins of organizations", "Park & van der Aalst, 'Realizing a Digital Twin of an Organization'"]
+            },
+            {
+              "label": "What-if / prescriptive analysis",
+              "terms": ["what-if analysis", "what if scenario analysis", "prescriptive process monitoring", "process improvement recommendation"],
+              "probe": "what-if scenario analysis and prescriptive recommendations over a process",
+              "canonical": ["Kubrak et al., 'Prescriptive Process Monitoring: Quo Vadis?'", "Dumas et al. on prescriptive monitoring"]
+            },
+            {
+              "label": "Comparative process mining",
+              "terms": ["comparative process mining", "process cube", "process variant comparison", "concept drift in process mining"],
+              "probe": "comparing process variants or cohorts and detecting drift",
+              "canonical": ["Bolt, de Leoni & van der Aalst, 'Process Variant Comparison'", "van der Aalst on process cubes"]
+            },
+            {
+              "label": "Remaining time / performance prediction",
+              "terms": ["remaining time prediction", "remaining cycle time prediction", "predictive business process monitoring"],
+              "probe": "predicting the remaining time of a running case",
+              "canonical": ["Verenich et al., 'Survey and cross-benchmark comparison of remaining time prediction methods'", "Tax et al., 'Predictive Business Process Monitoring with LSTM Neural Networks'"]
+            },
+            {
+              "label": "Hybrid simulation (DES + SD + ABS)",
+              "terms": ["hybrid simulation", "hybrid simulation modelling", "combining discrete event and system dynamics", "multi-paradigm simulation"],
+              "probe": "combining discrete-event, system-dynamics and agent-based simulation in one model",
+              "canonical": ["Brailsford et al., 'Hybrid simulation modelling in operational research: A state-of-the-art review'", "Eldabi et al. on hybrid simulation definitions"]
+            },
+            {
+              "label": "System dynamics",
+              "terms": ["system dynamics", "stock and flow", "causal loop", "Forrester model"],
+              "probe": "system dynamics stocks flows feedback loops aggregated model",
+              "canonical": ["Forrester, *Industrial Dynamics*", "Sterman, *Business Dynamics*"]
+            }
+          ]
+        }
+      ]
+    },
+    "artifact-centric-simulation": {
+      "title": "Artifact-centric & declarative process models — can they be simulated the way BPMN is?",
+      "question": "Business process simulation is an imperative-model discipline: a BPS model is a BPMN model or a Petri net plus branching probabilities, durations and an arrival process, and the engine plays the token game. Artifact-centric models (Nigam & Caswell's business artifacts, Hull's Guard-Stage-Milestone) and the declarative languages beside them (Declare, DCR, CMMN) have no token game — behaviour is whatever satisfies the constraints. So does the collection hold the literature on *analysing* these models quantitatively, and does that literature even exist? The four candidate answers the field actually gives are enactment, verification, constraint-based log generation, and the object-centric turn; this map audits each separately, so a MISSING verdict distinguishes a hole in the library from a hole in the research.",
+      "themes": [
+        {
+          "name": "Artifact-centric foundations — the models being asked about",
+          "note": "The primary sources. Without these the question cannot be posed: GSM's declarativeness is exactly what makes the BPS recipe inapplicable, and that is argued in the meta-model papers rather than in any simulation paper.",
+          "concepts": [
+            {
+              "label": "Business artifacts (Nigam & Caswell)",
+              "terms": ["business artifact", "business artifacts", "operational specification"],
+              "probe": "business artifacts an approach to operational specification of business processes",
+              "canonical": [
+                "Nigam & Caswell, 'Business artifacts: An approach to operational specification' (IBM Systems Journal 42(3), 2003)",
+                "Bhattacharya, Gerede, Hull, Liu & Su, 'Towards Formal Analysis of Artifact-Centric Business Process Models' (BPM 2007)"
+              ]
+            },
+            {
+              "label": "Artifact-centric process models (Hull's survey line)",
+              "terms": ["artifact-centric", "artifact centric", "artefact-centric", "artifact-centric business process"],
+              "probe": "artifact-centric business process models brief survey of research results and challenges",
+              "canonical": [
+                "Hull, 'Artifact-Centric Business Process Models: Brief Survey of Research Results and Challenges' (ODBASE 2008)",
+                "Cohn & Hull, 'Business Artifacts: A Data-centric Approach to Modeling Business Operations and Processes' (IEEE Data Eng. Bull. 32(3), 2009)"
+              ]
+            },
+            {
+              "label": "BALSA framework / data-centric design methodology",
+              "note": "Probed by the expansion, not the acronym: a bare `BALSA` matches the Balsa learned query optimizer 271 times in this corpus and fabricates a covered verdict.",
+              "terms": ["BALSA framework", "Business Artifacts Lifecycles Services Associations", "data-centric design methodology", "artifact-centric design methodology"],
+              "probe": "BALSA business artifacts lifecycles services associations design methodology",
+              "canonical": ["Bhattacharya, Hull & Su, 'A Data-Centric Design Methodology for Business Processes' (2009)"]
+            },
+            {
+              "label": "Guard-Stage-Milestone meta-model",
+              "note": "`GSM model` and `GSM schema` are deliberately excluded: they are the vocabulary of papers *about* GSM (a verification paper repeats `GSM model` 40 times and scores as focused), not of the papers that define it. The `held` column is the operative signal here.",
+              "terms": ["Guard-Stage-Milestone", "Guard Stage Milestone", "GSM lifecycle", "guard-stage-milestone lifecycles", "GSM stage", "milestone status"],
+              "probe": "guard stage milestone lifecycle meta-model for business artifacts",
+              "canonical": [
+                "Hull et al., 'Introducing the Guard-Stage-Milestone Approach for Specifying Business Entity Lifecycles' (WS-FM 2010)",
+                "Hull et al., 'Business artifacts with guard-stage-milestone lifecycles: managing artifact interactions with conditions and events' (DEBS 2011)"
+              ]
+            },
+            {
+              "label": "GSM operational semantics (ECA rules, snapshots)",
+              "terms": ["operational semantics of GSM", "incremental semantics", "fixpoint semantics", "B-step", "PAC rule", "prerequisite-antecedent-consequent"],
+              "probe": "GSM operational semantics incremental and fixpoint formulations B-step snapshot",
+              "canonical": [
+                "Damaggio, Hull & Vaculín, 'On the equivalence of incremental and fixpoint semantics for business artifacts with Guard-Stage-Milestone lifecycles' (BPM 2011 / Inf. Syst. 2013)",
+                "Hull et al., 'A Formal Introduction to Business Artifacts with Guard-Stage-Milestone Lifecycles' (IBM tech report, 2011)"
+              ]
+            },
+            {
+              "label": "Artifact-centric service interoperation (hubs)",
+              "terms": ["artifact-centric service interoperation", "artifact-centric hub", "ACSI hub", "Siena prototype"],
+              "probe": "artifact-centric hubs for service interoperation across organizations",
+              "canonical": [
+                "Hull et al., 'Facilitating Workflow Interoperation Using Artifact-Centric Hubs' (ICSOC 2009)",
+                "Sun et al., 'Modeling Data for Business Processes' / ACSI Hub demo (2014)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Enactment — executing one run, which is not the same as simulating many",
+          "note": "The artifact-centric community built engines, not simulators. An engine answers 'what happens next given this event'; a simulator answers 'what is the mean cycle time under this arrival rate'. Holding the engine papers is what makes that distinction checkable rather than asserted.",
+          "concepts": [
+            {
+              "label": "Barcelona GSM engine",
+              "note": "A bare `Barcelona` is a conference venue in this corpus (34 hits in a scientific-workflow paper) and `artifact system` is the verification literature's ordinary noun, so both are excluded.",
+              "terms": ["Barcelona engine", "Barcelona GSM", "declarative artifact-centric BPM", "artifact-centric business process management system"],
+              "probe": "Barcelona design and runtime environment for declarative artifact-centric BPM",
+              "canonical": [
+                "Heath, Boaz, Gupta, Vaculín, Sun, Hull & Limonad, 'Barcelona: A Design and Runtime Environment for Declarative Artifact-Centric BPM' (ICSOC 2013)",
+                "Heath, Vaculín & Hull, 'Barcelona' demo (BPM 2011)"
+              ]
+            },
+            {
+              "label": "E-GSM monitoring / BPMN-to-GSM translation",
+              "terms": ["E-GSM", "extended GSM", "process flow guard", "fault logger"],
+              "probe": "E-GSM extended guard-stage-milestone runtime monitoring of BPMN processes",
+              "canonical": [
+                "Baresi, Meroni & Plebani, 'Using the Guard-Stage-Milestone Notation for Monitoring BPMN-based Processes' (BPMDS 2016)",
+                "Meroni, 'Multi-party business process compliance monitoring through IoT-enabled artifacts' (PhD, 2018)"
+              ]
+            },
+            {
+              "label": "Object-aware process management (PHILharmonicFlows)",
+              "terms": ["PHILharmonicFlows", "object-aware process", "object-aware process management", "micro process", "macro process"],
+              "probe": "object-aware process management data-driven micro and macro processes",
+              "canonical": [
+                "Künzle & Reichert, 'PHILharmonicFlows: towards a framework for object-aware process management' (JSME 2011)",
+                "Steinau et al., 'The relational process structure' (CAiSE 2018)"
+              ]
+            },
+            {
+              "label": "Case handling",
+              "terms": ["case handling", "case handling system", "data-driven case handling", "product based workflow design"],
+              "probe": "case handling a new paradigm for business process support driven by data rather than control flow",
+              "canonical": ["van der Aalst, Weske & Grünbauer, 'Case handling: a new paradigm for business process support' (DKE 53(2), 2005)"]
+            },
+            {
+              "label": "DCR graph execution semantics",
+              "terms": ["Dynamic Condition Response", "DCR graph", "DCR graphs", "DCR marking", "included and pending", "nested DCR"],
+              "probe": "dynamic condition response graphs declarative event-based workflow execution semantics marking",
+              "canonical": [
+                "Hildebrandt & Mukkamala, 'Declarative Event-Based Workflow as Distributed Dynamic Condition Response Graphs' (PLACES 2010)",
+                "Debois, Hildebrandt & Slaats, 'Replication, refinement & reachability: complexity in dynamic condition-response graphs' (Acta Inf. 2018)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Verification — the artifact-centric community's answer to 'what will this model do'",
+          "note": "Where the imperative world reaches for simulation, this literature reaches for model checking: exhaustive rather than sampled, qualitative rather than quantitative, and undecidable without restrictions. The library is expected to be strong here; the theme exists to establish that the *quantitative* question is the one nobody answered.",
+          "concepts": [
+            {
+              "label": "Verification of artifact-centric / GSM systems",
+              "terms": ["verification of artifact-centric", "artifact system verification", "GSMC", "predicate abstraction", "hierarchical artifact system"],
+              "probe": "verification of artifact-centric systems decidability model checking GSM",
+              "canonical": [
+                "Belardinelli, Lomuscio & Patrizi, 'Verification of GSM-based Artifact-centric Systems' / González, Griesmayer & Lomuscio, 'Verification of GSM-based Artifact-centric Systems by Predicate Abstraction' (ICSOC 2015)",
+                "Deutsch, Hull & Vianu, 'Automatic Verification of Database-Centric Systems' / 'Verification of Hierarchical Artifact Systems' (PODS 2016)"
+              ]
+            },
+            {
+              "label": "Data-centric dynamic systems (DCDS)",
+              "terms": ["data-centric dynamic system", "DCDS", "relational data-centric dynamic", "state-bounded"],
+              "probe": "verification of relational data-centric dynamic systems state boundedness",
+              "canonical": ["Bagheri Hariri, Calvanese, De Giacomo, Deutsch & Montali, 'Verification of relational data-centric dynamic systems with external services' (PODS 2013)"]
+            },
+            {
+              "label": "Reachability / state-space explosion in declarative models",
+              "terms": ["state space explosion", "reachability graph", "exhaustive state space exploration"],
+              "probe": "state space explosion when exploring all behaviours permitted by a constraint model",
+              "canonical": ["Baier & Katoen, *Principles of Model Checking*", "Solomakhin, Montali, Tessaris & De Masellis, 'Verification of Artifact-Centric Systems: Decidability and Modeling Issues' (ICSOC 2013)"]
+            }
+          ]
+        },
+        {
+          "name": "Simulating a declarative model — log generation is the operative form",
+          "note": "This is the closest thing to an answer, and the crux of the whole question. A declarative model cannot be played forward token-by-token, so 'simulation' means *sampling from the set of traces satisfying the constraints* — via automata, SAT/Alloy, or ASP. Note what these tools do not produce: timestamps drawn from distributions, resources, or queues. They generate behaviour, not performance.",
+          "concepts": [
+            {
+              "label": "Log generation from Declare models",
+              "terms": ["log generation", "log generator", "generating event logs", "synthetic log generation", "simulation of Declare"],
+              "probe": "generating event logs through the simulation of Declare models finite state automata",
+              "canonical": [
+                "Di Ciccio, Bernardi, Cimitile & Maggi, 'Generating Event Logs Through the Simulation of Declare Models' (EOMAS 2015)",
+                "Skydanienko, Di Francescomarino, Ghidini & Maggi, 'A Tool for Generating Event Logs from Multi-Perspective Declare Models' (BPM Demos 2018)"
+              ]
+            },
+            {
+              "label": "Simulation of multi-perspective declarative models (Alloy)",
+              "terms": ["MuDePS", "DPIL", "multi-perspective declarative", "declarative process modeling language", "Alloy Analyzer"],
+              "probe": "simulation of multi-perspective declarative process models translated to Alloy",
+              "canonical": [
+                "Ackermann, Schönig & Jablonski, 'Simulation of Multi-Perspective Declarative Process Models' (BPM Workshops 2016)",
+                "Ackermann, Schönig & Jablonski, 'MuDePS: Multi-perspective Declarative Process Simulation' (BPM Demos 2016)"
+              ]
+            },
+            {
+              "label": "SAT / ASP-based declarative process reasoning",
+              "terms": ["data-aware declarative process mining", "SAT solver", "answer set programming", "MP-Declare", "RuM toolkit"],
+              "probe": "data-aware declarative process mining with SAT log generation conformance checking",
+              "canonical": [
+                "Maggi, Montali, Peñaloza & Sanchez (Chiariello, Maggi & Patrizi), 'Data-Aware Declarative Process Mining with SAT' (ACM TIST 2023)",
+                "Alman, Di Ciccio, Maggi et al., 'RuM: Declarative Process Mining, Distilled' (BPM 2020) / 'Rule Mining in Action: The RuM Toolkit'"
+              ]
+            },
+            {
+              "label": "LTLf and automata for finite traces",
+              "terms": ["LTLf", "LTL over finite traces", "colored automata", "constraint automaton", "regular expression semantics"],
+              "probe": "linear temporal logic over finite traces translated to finite-state automata for process monitoring",
+              "canonical": [
+                "De Giacomo & Vardi, 'Linear Temporal Logic and Linear Dynamic Logic on Finite Traces' (IJCAI 2013)",
+                "Maggi, Montali, Westergaard & van der Aalst, 'Monitoring Business Constraints with Linear Temporal Logic: An Approach Based on Colored Automata' (BPM 2011)"
+              ]
+            },
+            {
+              "label": "Declarative-to-imperative translation",
+              "terms": ["from declarative to imperative", "declarative process modeling in BPMN", "constraint to procedural translation", "hybrid process model"],
+              "probe": "translating a declarative constraint model into an imperative process model",
+              "canonical": [
+                "Prescher, Di Ciccio & Mendling, 'From Declarative Processes to Imperative Models' (SIMPDA 2014)",
+                "De Giacomo, Dumas, Maggi & Montali, 'Declarative Process Modeling in BPMN' (CAiSE 2015)"
+              ]
+            },
+            {
+              "label": "Timed / stochastic extensions of declarative models",
+              "terms": ["timed Declare", "timed dynamic condition response", "timed DCR", "stochastic Declare", "probabilistic Declare", "probabilistic declarative process"],
+              "probe": "adding time and probability to declarative process constraints",
+              "canonical": [
+                "Westergaard & Maggi, 'Looking into the Future: Using Timed Automata to Provide A Priori Advice about Timed Declarative Process Models' (CoopIS 2012)",
+                "Hildebrandt, Mukkamala, Slaats & Zanitti, 'Contracts for cross-organizational workflows as timed Dynamic Condition Response Graphs' (JLAP 2013)",
+                "Maggi, Montali & Peñaloza, 'Probabilistic Conformance Checking Based on Declarative Process Models' (2020)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Declarative vs imperative — what the comparison literature actually compared",
+          "note": "There is a real comparative literature, and it is about humans, not engines: understandability, maintainability, cognitive dimensions. If this theme comes back covered while the simulation themes do not, that is itself the finding — the paradigms were compared on comprehension and never on analysability.",
+          "concepts": [
+            {
+              "label": "Understandability of declarative vs imperative models",
+              "terms": ["declarative versus imperative", "declarative vs imperative", "imperative versus declarative", "understandability of process models", "cognitive dimensions framework"],
+              "probe": "declarative versus imperative process modeling languages the issue of understandability",
+              "canonical": [
+                "Fahland, Lübke, Mendling, Reijers, Weber, Weidlich & Zugal, 'Declarative versus Imperative Process Modeling Languages: The Issue of Understandability' (BPMDS 2009)",
+                "Fahland et al., 'Declarative versus Imperative Process Modeling Languages: The Issue of Maintainability' (BPM Workshops 2009)"
+              ]
+            },
+            {
+              "label": "Empirical comparison experiments",
+              "terms": ["sequential and circumstantial information", "controlled experiment process modeling", "modeling paradigm experiment"],
+              "probe": "controlled experiment comparing imperative and declarative process modeling paradigms",
+              "canonical": [
+                "Pichler, Weber, Zugal, Pinggera, Mendling & Reijers, 'Imperative versus Declarative Process Modeling Languages: An Empirical Investigation' (BPM Workshops 2011)",
+                "Haisjackl & Zugal, 'Investigating Differences between Graphical and Textual Declarative Process Models' (CAiSE Forum 2014)"
+              ]
+            },
+            {
+              "label": "Is declarative modelling viable at all?",
+              "terms": ["academic dream", "declarative modeling adoption", "flexibility by design", "flexibility versus support"],
+              "probe": "declarative modeling an academic dream or the future for business process management",
+              "canonical": [
+                "Reijers, Slaats & Stahl, 'Declarative Modeling — An Academic Dream or the Future for BPM?' (BPM 2013)",
+                "Schonenberg, Mans, Russell, Mulyar & van der Aalst, 'Process Flexibility: A Survey of Contemporary Approaches' (2008)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Where quantitative simulation actually went: object-centric and data-aware BPS",
+          "note": "The field did answer the question — by changing the formalism. Object-centric Petri nets and data-aware BPMN keep the token game and add objects/data, so the DES machinery still works. That is the route around artifact-centric declarativeness, and holding it is what lets the gap be described as a choice rather than an oversight.",
+          "concepts": [
+            {
+              "label": "Object-centric simulation",
+              "terms": ["object-centric simulation", "object centric simulation", "object-centric process simulation", "simulating object-centric"],
+              "probe": "object-centric simulation learning the true fabric of operational processes",
+              "canonical": [
+                "van der Aalst, 'Object-Centric Simulation: Learning the True Fabric of Operational Processes' (2023)",
+                "Kirchdorfer et al. / 'Discovering Object-Centric Process Simulation Models' (ICPM 2023)"
+              ]
+            },
+            {
+              "label": "Data-aware business process simulation",
+              "terms": ["data-aware business process simulation", "data-aware BPS", "attribute update rule", "data-aware branching"],
+              "probe": "discovery and simulation of data-aware business processes attribute update rules",
+              "canonical": ["López-Pintado, Dumas et al., 'Discovery and Simulation of Data-Aware Business Processes' (ICPM 2024, arXiv:2408.13666)"]
+            },
+            {
+              "label": "Object-centric Petri nets",
+              "terms": ["object-centric Petri net", "object-centric Petri nets", "OCPN", "object-centric event log", "OCEL"],
+              "probe": "discovering object-centric Petri nets from object-centric event logs",
+              "canonical": [
+                "van der Aalst & Berti, 'Discovering Object-centric Petri Nets' (Fundam. Inform. 2020)",
+                "Koren, 'OCPN Studio: Web-Based Modeling, Simulation, and Analysis of Object-Centric Petri Nets' (Petri Nets 2026)"
+              ]
+            },
+            {
+              "label": "Coloured Petri nets as the simulation substrate",
+              "terms": ["coloured Petri net", "colored Petri net", "CPN Tools", "CPN ML", "db-net"],
+              "probe": "coloured Petri nets and CPN Tools for simulating data-aware process models",
+              "canonical": [
+                "Jensen & Kristensen, *Coloured Petri Nets: Modelling and Validation of Concurrent Systems*",
+                "Montali & Rivkin, 'DB-Nets: On the Marriage of Colored Petri Nets and Relational Databases' / 'From DB-nets to Coloured Petri Nets with Priorities' (Petri Nets 2019)"
+              ]
+            },
+            {
+              "label": "Stochastic object-centric / declarative process mining",
+              "note": "`stochastic process mining` is excluded as too broad — it has its own folder in the library and would report this concept covered on the strength of the single-case-notion literature.",
+              "terms": ["stochastic object-centric", "object interaction pattern", "stochastic object-centric process tree", "probabilistic object-centric"],
+              "probe": "stochastic extensions of object-centric process models probability of interaction patterns",
+              "canonical": [
+                "Leemans, van der Aalst et al. on stochastic process mining / earth-movers' conformance",
+                "Adams et al., 'Stochastic Object-Centric Process Mining: Analysing Object Interaction Patterns' (2024)"
+              ]
+            },
+            {
+              "label": "Decision support over GSM without simulation (MDP)",
+              "note": "Probed on the GSM-to-MDP mapping rather than on `Markov decision process`, which in this corpus is mostly reinforcement-learning papers with no process model in sight.",
+              "terms": ["decision support for declarative artifact-centric", "GSM schema to an MDP", "artifact-centric Markov decision", "discretionary decision event"],
+              "probe": "mapping a GSM schema to a Markov decision process for decision support",
+              "canonical": ["Voorberg, Dijkman, van Jaarsveld et al., 'Decision Support for Declarative Artifact-Centric Process Models' (BPM Forum 2019)"]
+            }
+          ]
+        },
+        {
+          "name": "The gap itself — quantitative simulation of an artifact-centric model",
+          "note": "The concepts this map exists to test. If these come back MISSING while every theme above is covered, the honest conclusion is that the *literature* has the hole, not the library — and that is a publishable observation rather than an acquisition target.",
+          "concepts": [
+            {
+              "label": "Simulating artifact-centric / GSM models for performance",
+              "terms": ["simulation of artifact-centric", "artifact-centric simulation", "simulating GSM", "GSM simulation", "artifact-centric what-if"],
+              "probe": "discrete-event simulation of an artifact-centric guard-stage-milestone model to estimate cycle time",
+              "canonical": ["No canonical work is known to exist; this probe is expected to come back MISSING and that is the finding."]
+            },
+            {
+              "label": "Resources and queues in declarative models",
+              "terms": ["resource perspective declarative", "resource-aware declarative", "queueing in declarative", "declarative resource allocation"],
+              "probe": "attaching resources queues and service times to a declarative constraint-based process model",
+              "canonical": [
+                "Ackermann, Schönig & Jablonski on resource-aware declarative models (DPIL)",
+                "Senderovich et al. on queue mining (held) — the imperative counterpart"
+              ]
+            },
+            {
+              "label": "Comparing simulation across paradigms",
+              "terms": ["simulation of declarative", "declarative simulation", "paradigm comparison simulation", "imperative simulation model declarative"],
+              "probe": "comparing what a declarative and an imperative model of the same process predict under simulation",
+              "canonical": ["None known; the comparison literature is about understandability, not analysability."]
+            }
+          ]
+        }
+      ]
+    },
+    "timeseries-process-mining": {
+      "title": "Time-series data mining × process mining — representation, motifs, anomalies, forecasting and counterfactuals",
+      "question": "The internal Supply Chain / Ontology / AI summit asks the PIG to hold time series data as a first-class object type rather than through 'helper objects', to time-version every node and link attribute, to answer Inventory(now) / Inventory(yesterday) / Inventory(future) through one query interface 'leveraging different models for projection', to derive statistical distributions from data as the base for simulation, to carry an Occurrence_Probability and an Impact_Distribution on an InfluenceLink, and to infer rules from timestamps ('people don't do X on Sundays'). Does the collection hold the time-series data-mining literature those requirements land in — representation and indexing, motif and discord discovery, anomaly detection and its benchmark critique, forecasting and imputation, counterfactual estimation, and the storage engines underneath — or only the process-mining papers that mention time series in passing?",
+      "themes": [
+        {
+          "name": "Representation, indexing and similarity",
+          "note": "Keogh's foundational layer: before anything can be mined, a series has to be represented and compared. This is the most-cited body of work in the field and the part a semantic layer would have to choose from when it decides how a stock-history object type is stored and searched.",
+          "concepts": [
+            {
+              "label": "Dynamic time warping and its lower bounds",
+              "terms": ["dynamic time warping", "LB_Keogh", "lower bounding measure", "DTW distance"],
+              "probe": "exact indexing of dynamic time warping with a lower bounding distance measure",
+              "canonical": [
+                "Keogh & Ratanamahatana, 'Exact indexing of dynamic time warping' (KAIS 2005)",
+                "Rakthanmanon et al., 'Searching and Mining Trillions of Time Series Subsequences under Dynamic Time Warping' (KDD 2012, UCR Suite)"
+              ]
+            },
+            {
+              "label": "Symbolic representation (SAX / iSAX)",
+              "terms": ["symbolic aggregate approximation", "SAX representation", "iSAX", "symbolic representation of time series"],
+              "probe": "a symbolic representation of time series with a lower bounding distance for streaming algorithms",
+              "canonical": [
+                "Lin, Keogh, Lonardi & Chiu, 'A symbolic representation of time series, with implications for streaming algorithms' (DMKD workshop 2003)",
+                "Shieh & Keogh, 'iSAX: indexing and mining terabyte sized time series' (KDD 2008)"
+              ]
+            },
+            {
+              "label": "Dimensionality reduction (PAA / APCA / DFT)",
+              "terms": ["piecewise aggregate approximation", "adaptive piecewise constant approximation", "locally adaptive dimensionality reduction", "dimensionality reduction for time series"],
+              "probe": "dimensionality reduction for fast similarity search in large time series databases",
+              "canonical": [
+                "Keogh, Chakrabarti, Pazzani & Mehrotra, 'Dimensionality Reduction for Fast Similarity Search in Large Time Series Databases' (KAIS 2001)",
+                "Keogh et al., 'Locally adaptive dimensionality reduction for indexing large time series databases' (SIGMOD 2001)"
+              ]
+            },
+            {
+              "label": "Segmentation and piecewise linear representation",
+              "terms": ["time series segmentation", "piecewise linear representation", "segmenting time series", "online segmentation"],
+              "probe": "an online algorithm for segmenting time series into piecewise linear segments",
+              "canonical": [
+                "Keogh, Chu, Hart & Pazzani, 'An online algorithm for segmenting time series' (ICDM 2001)"
+              ]
+            },
+            {
+              "label": "Benchmark archives (UCR / UEA)",
+              "terms": ["UCR time series archive", "UCR archive", "UEA multivariate time series", "UCR time series classification"],
+              "probe": "the UCR time series archive of benchmark classification datasets and how to use it",
+              "canonical": [
+                "Dau et al., 'The UCR Time Series Archive' (2019)",
+                "Bagnall et al., 'The UEA multivariate time series classification archive' (2018)"
+              ]
+            },
+            {
+              "label": "Empirical comparison of representations and measures",
+              "terms": ["experimental comparison of representation", "querying and mining of time series data", "need for time series data mining benchmarks", "bake off"],
+              "probe": "experimental comparison of representations and distance measures for time series data mining",
+              "canonical": [
+                "Ding, Trajcevski, Scheuermann, Wang & Keogh, 'Querying and Mining of Time Series Data: Experimental Comparison of Representations and Distance Measures' (PVLDB 2008)",
+                "Keogh & Kasetty, 'On the need for time series data mining benchmarks' (KDD 2002)",
+                "Bagnall et al., 'The great time series classification bake off' (DMKD 2017)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Motifs, discords and shapelets — the Matrix Profile line",
+          "note": "The primitives that answer 'what recurs' and 'what is unlike anything else' over a numeric series without a label. This is the closest existing analogue to what the summit means by inferring rules from timestamps, and the Matrix Profile is the single data structure that unifies motif, discord and join.",
+          "concepts": [
+            {
+              "label": "Matrix Profile",
+              "terms": ["matrix profile", "STOMP", "SCRIMP", "STUMPY", "all pairs similarity join for time series"],
+              "probe": "the matrix profile as a unifying data structure for motifs discords and shapelets",
+              "canonical": [
+                "Yeh et al., 'Matrix Profile I: All Pairs Similarity Joins for Time Series' (ICDM 2016)",
+                "Zhu et al., 'Matrix Profile II: Exploiting a Novel Algorithm and GPUs' (ICDM 2016)"
+              ]
+            },
+            {
+              "label": "Time series motifs",
+              "terms": ["time series motif", "motif discovery", "guided motif search", "multidimensional motif"],
+              "probe": "finding recurring subsequences motifs in a time series",
+              "canonical": [
+                "Chiu, Keogh & Lonardi, 'Probabilistic discovery of time series motifs' (KDD 2003)",
+                "Mueen, Keogh et al., 'Exact discovery of time series motifs' (SDM 2009)"
+              ]
+            },
+            {
+              "label": "Time series discords (anomaly primitive)",
+              "terms": ["time series discord", "discord discovery", "MERLIN", "DAMP", "HOT SAX"],
+              "probe": "finding the most unusual subsequence a discord in a time series",
+              "canonical": [
+                "Keogh, Lin & Fu, 'HOT SAX: Efficiently Finding the Most Unusual Time Series Subsequence' (ICDM 2005)",
+                "Nakamura et al., 'MERLIN: Parameter-Free Discovery of Arbitrary Length Anomalies' (ICDM 2020)",
+                "Lu et al., 'DAMP: Matrix Profile XXIV — accurate fast anomaly detection at scale' (KDD 2022)"
+              ]
+            },
+            {
+              "label": "Shapelets",
+              "terms": ["time series shapelet", "shapelet", "logical shapelet"],
+              "probe": "time series shapelets as an interpretable primitive for classification",
+              "canonical": [
+                "Ye & Keogh, 'Time series shapelets: a new primitive for data mining' (KDD 2009)"
+              ]
+            },
+            {
+              "label": "Chains, regimes and semantic segmentation",
+              "terms": ["time series chain", "FLOSS", "semantic segmentation of time series", "regime change detection", "arc curve"],
+              "probe": "detecting regime changes and evolving chains of behaviour in a time series",
+              "canonical": [
+                "Zhu et al., 'Matrix Profile VII: Time Series Chains' (ICDM 2017)",
+                "Gharghabi et al., 'Matrix Profile VIII: Domain agnostic online semantic segmentation' (FLOSS, ICDM 2017)"
+              ]
+            },
+            {
+              "label": "Snippets and summarisation",
+              "terms": ["time series snippet", "time series summarization", "representative pattern"],
+              "probe": "summarising a long time series by a small set of representative snippets",
+              "canonical": [
+                "Imani et al., 'Matrix Profile XIII: Time Series Snippets' (ICBK 2018)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Anomaly detection and the credibility of its benchmarks",
+          "note": "The summit's 'what turns red' and the sensitivity-propagation engine are anomaly questions in disguise. This theme is here as much for the methodological critique as for the methods: Keogh's line of work argues that most published time-series anomaly-detection results are artefacts of the benchmarks and of the point-adjust evaluation protocol, which is exactly the claim a platform team needs before it builds on any of them.",
+          "concepts": [
+            {
+              "label": "Time series anomaly detection (methods)",
+              "terms": ["time series anomaly detection", "anomaly detection in time series", "subsequence anomaly detection", "outlier detection in time series"],
+              "probe": "detecting anomalies in univariate and multivariate time series",
+              "canonical": [
+                "Blázquez-García et al., 'A review on outlier/anomaly detection in time series data' (CSUR 2021)",
+                "Boniol, Paparrizos et al., 'Series2Graph' / 'SAND' (VLDB)"
+              ]
+            },
+            {
+              "label": "The benchmark critique",
+              "terms": ["benchmarks are flawed", "Numenta anomaly benchmark", "Yahoo anomaly benchmark", "trivial anomaly", "run-to-failure bias"],
+              "probe": "current time series anomaly detection benchmarks are flawed and results are not what they seem",
+              "canonical": [
+                "Wu & Keogh, 'Current Time Series Anomaly Detection Benchmarks are Flawed and are Creating the Illusion of Progress' (TKDE 2021)"
+              ]
+            },
+            {
+              "label": "Evaluation protocol (point adjust and its successors)",
+              "terms": ["point adjust", "point-adjusted F1", "range-based precision and recall", "affiliation metric", "VUS-PR"],
+              "probe": "why the point-adjust protocol overstates time series anomaly detection accuracy",
+              "canonical": [
+                "Kim et al., 'Towards a Rigorous Evaluation of Time-series Anomaly Detection' (AAAI 2022)",
+                "Tatbul et al., 'Precision and Recall for Time Series' (NeurIPS 2018)",
+                "Paparrizos et al., 'Volume Under the Surface' (VLDB 2022)"
+              ]
+            },
+            {
+              "label": "Streaming and online detection",
+              "terms": ["streaming anomaly detection", "online anomaly detection", "concept drift anomaly", "streaming time series"],
+              "probe": "detecting anomalies in a streaming time series under concept drift",
+              "canonical": [
+                "Boniol et al., 'SAND: Streaming Subsequence Anomaly Detection' (VLDB 2021)"
+              ]
+            },
+            {
+              "label": "Change point detection",
+              "terms": ["change point detection", "changepoint detection", "CUSUM", "break detection"],
+              "probe": "detecting change points in a time series",
+              "canonical": [
+                "Truong, Oudre & Vayatis, 'Selective review of offline change point detection methods' (2020)",
+                "Aminikhanghahi & Cook, 'A survey of methods for time series change point detection' (2017)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Forecasting, imputation and matrix estimation",
+          "note": "Shah's half of the anchor. The interesting claim is unification: imputation, forecasting and counterfactual estimation are the same matrix-estimation problem on a page-matrix view of the series, which is what makes it a candidate answer to the summit's Inventory(now)/Inventory(yesterday)/Inventory(future) query interface rather than three separate features.",
+          "concepts": [
+            {
+              "label": "Time series analysis via matrix estimation",
+              "terms": ["matrix estimation", "time series analysis via matrix estimation", "page matrix", "Hankel matrix", "matrix completion"],
+              "probe": "imputation and forecasting of a time series via matrix estimation on its page matrix",
+              "canonical": [
+                "Agarwal, Amjad, Shah & Shen, 'Time Series Analysis via Matrix Estimation' (2018)",
+                "Agarwal, Alomar & Shah, 'On Multivariate Singular Spectrum Analysis and its Variants' (2021)"
+              ]
+            },
+            {
+              "label": "Singular spectrum analysis",
+              "terms": ["singular spectrum analysis", "multivariate singular spectrum", "mSSA", "SSA forecasting"],
+              "probe": "multivariate singular spectrum analysis for forecasting and imputation",
+              "canonical": [
+                "Agarwal, Alomar & Shah, 'On Multivariate Singular Spectrum Analysis and its Variants' (2022)",
+                "Golyandina & Zhigljavsky, 'Singular Spectrum Analysis for Time Series'"
+              ]
+            },
+            {
+              "label": "Nearest neighbours and latent source models",
+              "terms": ["latent source model", "nonparametric time series classification", "explaining the success of nearest neighbor", "collaborative filtering for time series"],
+              "probe": "a latent source model explaining why nearest neighbour methods work for time series prediction",
+              "canonical": [
+                "Chen, Nikolov & Shah, 'A Latent Source Model for Nonparametric Time Series Classification' (NIPS 2013)",
+                "Shah & Song, 'Explaining the Success of Nearest Neighbor Methods in Prediction'"
+              ]
+            },
+            {
+              "label": "Classical statistical forecasting",
+              "terms": ["ARIMA", "exponential smoothing", "Holt-Winters", "state space model forecasting", "Box-Jenkins"],
+              "probe": "classical statistical forecasting with ARIMA and exponential smoothing",
+              "canonical": [
+                "Hyndman & Athanasopoulos, *Forecasting: Principles and Practice*",
+                "Faloutsos et al., 'Classical and Contemporary Approaches to Big Time Series Forecasting' (SIGMOD 2019 tutorial)"
+              ]
+            },
+            {
+              "label": "Deep and foundation models for forecasting",
+              "terms": ["N-BEATS", "Informer", "PatchTST", "time series foundation model", "Chronos", "TimeGPT", "transformers for time series"],
+              "probe": "deep learning and pretrained foundation models for time series forecasting",
+              "canonical": [
+                "Oreshkin et al., 'N-BEATS' (ICLR 2020)",
+                "Zeng et al., 'Are Transformers Effective for Time Series Forecasting?' (AAAI 2023)",
+                "Ansari et al., 'Chronos: Learning the Language of Time Series' (2024)"
+              ]
+            },
+            {
+              "label": "Hierarchical forecasting and reconciliation",
+              "terms": ["hierarchical forecasting", "forecast reconciliation", "coherent forecasts", "temporal aggregation forecasting"],
+              "probe": "reconciling forecasts across an aggregation hierarchy so they are coherent",
+              "canonical": [
+                "Hyndman et al., 'Optimal combination forecasts for hierarchical time series' (2011)",
+                "Wickramasuriya, Athanasopoulos & Hyndman, 'Optimal forecast reconciliation' (JASA 2019)"
+              ]
+            },
+            {
+              "label": "Intermittent demand and probabilistic evaluation",
+              "terms": ["intermittent demand", "Croston", "quantile loss", "pinball loss", "CRPS", "prediction interval"],
+              "probe": "forecasting intermittent demand and evaluating probabilistic forecasts",
+              "canonical": [
+                "Syntetos & Boylan on intermittent demand estimators",
+                "Gneiting & Raftery, 'Strictly Proper Scoring Rules, Prediction, and Estimation' (JASA 2007)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Counterfactuals, causal what-if and scenario analysis",
+          "note": "The bridge from time-series estimation to the summit's scenario overlay and Sensitivity Propagation Engine. A scenario overlay asks what the series would have been under a different intervention, which is the synthetic-control question — a literature the process-mining simulation corpus does not cite and which Shah's group reformulated as matrix estimation.",
+          "concepts": [
+            {
+              "label": "Synthetic control",
+              "terms": ["synthetic control", "robust synthetic control", "synthetic difference-in-differences", "synthetic interventions"],
+              "probe": "estimating the counterfactual trajectory of a treated unit using a synthetic control",
+              "canonical": [
+                "Abadie, Diamond & Hainmueller, 'Synthetic Control Methods for Comparative Case Studies' (JASA 2010)",
+                "Amjad, Shah & Shen, 'Robust Synthetic Control' (JMLR 2018)",
+                "Agarwal et al., 'Synthetic Interventions' / 'On Robustness of Principal Component Regression'"
+              ]
+            },
+            {
+              "label": "Panel data and difference-in-differences",
+              "terms": ["difference-in-differences", "panel data model", "factor model panel", "matrix completion causal"],
+              "probe": "causal inference from panel data with difference-in-differences and matrix completion",
+              "canonical": [
+                "Athey et al., 'Matrix Completion Methods for Causal Panel Data Models' (JASA 2021)",
+                "Bai on interactive fixed effects"
+              ]
+            },
+            {
+              "label": "Causal discovery and Granger causality on series",
+              "terms": ["Granger causality", "causal discovery time series", "PCMCI", "transfer entropy"],
+              "probe": "discovering causal relations between time series variables",
+              "canonical": [
+                "Runge et al., 'Detecting and quantifying causal associations in large nonlinear time series datasets' (Science Advances 2019)",
+                "Granger, 'Investigating causal relations by econometric models and cross-spectral methods' (1969)"
+              ]
+            },
+            {
+              "label": "Counterfactual forecasting and causal impact",
+              "terms": ["counterfactual forecasting", "causal impact", "Bayesian structural time series", "intervention analysis"],
+              "probe": "forecasting the counterfactual to measure the causal impact of an intervention",
+              "canonical": [
+                "Brodersen et al., 'Inferring causal impact using Bayesian structural time-series models' (2015)"
+              ]
+            },
+            {
+              "label": "Sensitivity analysis and impact propagation",
+              "terms": ["sensitivity analysis", "impact propagation", "what-if analysis", "perturbation propagation"],
+              "probe": "propagating the impact of a change through a network of dependent quantities",
+              "canonical": [
+                "Saltelli et al. on global sensitivity analysis",
+                "The summit's 'Sensitivity Propagation Engine' has no named prior art; this probe tests whether any is held."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Systems — time series in databases, and prediction inside the engine",
+          "note": "Where the summit's requirement actually lands as engineering: if a stock-history object type is first-class and Inventory(future) is a query, then the store and the query language have to carry it. Shah's tspDB is the sharpest existing statement of the position that prediction belongs inside the database rather than in a pipeline beside it.",
+          "concepts": [
+            {
+              "label": "Prediction inside the database (tspDB)",
+              "terms": ["tspDB", "predictive query", "in-database machine learning", "prediction interface database", "time series prediction database"],
+              "probe": "a database that answers predictive queries about a time series as a first-class operation",
+              "canonical": [
+                "Agarwal, Alomar & Shah, 'tspDB: Time Series Predict DB' (2020/2021)",
+                "Alomar et al., 'On Prediction, Imputation and Forecasting in a Relational Database'"
+              ]
+            },
+            {
+              "label": "Time series DBMS and storage engines",
+              "terms": ["time series database", "TSDB", "InfluxDB", "TimescaleDB", "Gorilla", "Monarch", "IoTDB"],
+              "probe": "the storage and compression architecture of a time series database",
+              "canonical": [
+                "Pelkonen et al., 'Gorilla: A Fast, Scalable, In-Memory Time Series Database' (VLDB 2015)",
+                "Adams et al., 'Monarch: Google's Planet-Scale In-Memory Time Series Database' (VLDB 2020)"
+              ]
+            },
+            {
+              "label": "Data-series similarity-search indexes",
+              "terms": ["data series index", "ADS+", "Coconut index", "data series similarity search", "ParIS", "Hercules index"],
+              "probe": "indexing billions of data series for similarity search",
+              "canonical": [
+                "Zoumpatianos, Idreos & Palpanas, 'ADS: the adaptive data series index' (VLDBJ 2016)",
+                "Echihabi et al., 'The Lernaean Hydra of Data Series Similarity Search' (VLDB 2019)"
+              ]
+            },
+            {
+              "label": "Compression, sketching and approximate aggregation",
+              "terms": ["time series compression", "sketch for streams", "approximate query processing", "count-min sketch", "quantile sketch"],
+              "probe": "compressing and sketching streaming numeric data for approximate aggregation",
+              "canonical": [
+                "Cormode & Muthukrishnan, 'An improved data stream summary: the count-min sketch' (2005)",
+                "Agarwal et al., 'BlinkDB' / Mergeable summaries"
+              ]
+            },
+            {
+              "label": "Temporal databases and as-of queries",
+              "terms": ["bitemporal", "valid time", "transaction time", "as-of query", "time travel query", "temporal table"],
+              "probe": "bitemporal data models and querying a table as of a point in time",
+              "canonical": [
+                "Snodgrass on TSQL2 / temporal databases",
+                "Kulkarni & Michels, 'Temporal features in SQL:2011'"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "The intersection — process mining over numeric series",
+          "note": "The part that decides whether this is one field or two. A process-mining corpus can be strong on event sequences and hold nothing about the numeric series that run alongside them; that asymmetry is the hypothesis this theme tests.",
+          "concepts": [
+            {
+              "label": "Event log to time series / performance signals",
+              "terms": ["event log to time series", "process performance time series", "process signal", "time series from event log", "coarse-grained event log"],
+              "probe": "deriving time series of performance indicators from an event log",
+              "canonical": [
+                "Pourbafrani & van der Aalst on extracting process features / time granularity for system dynamics",
+                "Vasilecas / Pourbafrani coarse-grained simulation from logs"
+              ]
+            },
+            {
+              "label": "Concept drift in process mining",
+              "terms": ["concept drift", "drift detection process", "process change detection", "business process drift"],
+              "probe": "detecting concept drift in a business process from its event log",
+              "canonical": [
+                "Bose, van der Aalst, Žliobaitė & Pechenizkiy, 'Dealing with concept drift in process mining' (TNNLS 2014)",
+                "Maaradji et al., 'Fast and accurate business process drift detection' (BPM 2015)"
+              ]
+            },
+            {
+              "label": "Predictive process monitoring",
+              "terms": ["predictive process monitoring", "remaining time prediction", "outcome prediction process", "next activity prediction"],
+              "probe": "predicting the remaining time or outcome of a running process case",
+              "canonical": [
+                "Teinemaa et al., 'Outcome-Oriented Predictive Process Monitoring: Review and Benchmark' (2019)",
+                "Verenich et al. on remaining-time prediction"
+              ]
+            },
+            {
+              "label": "Decision mining with time series data",
+              "terms": ["decision mining", "decision point analysis", "automatic feature generation decision"],
+              "probe": "using time series data attached to a case to explain a decision in a process",
+              "canonical": [
+                "Scheibel & Rinderle-Ma, 'Decision Mining with Time Series Data Based on Automatic Feature Generation' (CAiSE 2022)"
+              ]
+            },
+            {
+              "label": "Temporal / seasonal pattern mining over series",
+              "terms": ["temporal pattern mining", "seasonal temporal pattern", "frequent temporal pattern", "episode mining"],
+              "probe": "mining frequent temporal and seasonal patterns from very large time series",
+              "canonical": [
+                "Ho, Ho & Pedersen, 'Efficient Temporal Pattern Mining in Big Time Series Using Mutual Information' (VLDB 2022)",
+                "Ho et al., 'Mining Seasonal Temporal Patterns in Time Series'"
+              ]
+            },
+            {
+              "label": "Time series clustering and classification for processes",
+              "terms": ["time series clustering", "time series classification", "trace clustering numeric"],
+              "probe": "clustering time series and applying it to process behaviour",
+              "canonical": [
+                "Paparrizos & Bogireddy, 'Time-Series Clustering: A Comprehensive Study' (2024)",
+                "Paparrizos & Gravano, 'k-Shape: Efficient and Accurate Clustering of Time Series' (SIGMOD 2015)"
+              ]
+            },
+            {
+              "label": "Attribute history / slowly changing state",
+              "terms": ["slowly changing dimension", "attribute history", "object state evolution", "stock history", "state over time"],
+              "probe": "representing the history of an attribute value so a query can ask for its value at a past point in time",
+              "canonical": [
+                "Kimball on slowly changing dimensions (type 2)",
+                "The summit's 'Time-Bound Attributes' requirement has no cited prior art; this probe tests whether any is held."
+              ]
+            }
+          ]
+        },
+        {
+          "name": "The supply-chain application the summit argues from",
+          "note": "The summit's worked examples are Exxon's dependency chains and Starbucks' bean-to-cup BOM, and the metrics it wants projected are inventory health, stockout risk and marginal cost. This theme checks whether the collection holds the operations literature those examples assume, as opposed to the process-mining reading of them.",
+          "concepts": [
+            {
+              "label": "Demand forecasting and S&OP",
+              "terms": ["demand forecasting", "sales and operations planning", "demand planning", "forecast accuracy supply chain"],
+              "probe": "demand forecasting in a supply chain and sales and operations planning",
+              "canonical": [
+                "Fildes & Goodwin on forecasting practice in supply chains",
+                "The M4/M5 forecasting competition papers"
+              ]
+            },
+            {
+              "label": "Inventory projection and stock position",
+              "terms": ["inventory position", "projected inventory", "safety stock", "stockout risk", "base stock policy", "newsvendor"],
+              "probe": "projecting inventory position forward to assess stockout risk",
+              "canonical": [
+                "Zipkin, *Foundations of Inventory Management*",
+                "Graves & Willems on supply chain configuration"
+              ]
+            },
+            {
+              "label": "Bullwhip and demand amplification",
+              "terms": ["bullwhip effect", "demand amplification", "beer distribution game"],
+              "probe": "the bullwhip effect and how demand variability amplifies upstream",
+              "canonical": [
+                "Lee, Padmanabhan & Whang, 'Information Distortion in a Supply Chain: The Bullwhip Effect' (1997)",
+                "Sterman on the beer distribution game"
+              ]
+            },
+            {
+              "label": "Calendars, working time and seasonality as model inputs",
+              "terms": ["working hours calendar", "shift calendar", "resource calendar", "seasonality model", "calendar effects"],
+              "probe": "modelling working-time calendars and seasonality as inputs to a projection",
+              "canonical": [
+                "López-Pintado & Dumas on resource calendars and multitasking",
+                "The summit's ReferenceStream primitive (calendars, FX rates, seasonality) has no cited prior art."
+              ]
+            },
+            {
+              "label": "Digital twin of an organisation",
+              "terms": ["digital twin of an organization", "digital twin organisation", "DTO"],
+              "probe": "a digital twin of an organization kept in step with its operational data",
+              "canonical": [
+                "van der Aalst, 'Digital Twins of Organizations' / process-mining framing",
+                "Gartner's DTO market definition (held under Analyst Reports)"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "agentic-sql-reliability": {
+      "title": "Agentic SQL / PQL reliability — enterprise Text-to-SQL, tool gates, and human query UX",
+      "question": "Does the collection cover why agents fail at real-world SQL/PQL — enterprise schema mess (Stonebraker/Wenz), classic and modern Text-to-SQL failure modes, human SQL/PQL UX studies, execution-feedback repair, constrained interfaces, and safe lakehouse publication (Bauplan) — in a form that maps onto Studio MCP gates (schema-before-query, probe-before-generate, auth vs generation, preview-before-execute)?",
+      "themes": [
+        {
+          "name": "Enterprise realism — Stonebraker / Wenz lineage",
+          "note": "Public Spider/BIRD scores overstate readiness. BEAVER, BenchPress, RUBICON and the CACM blog argue for private warehouses, schema rot, idiosyncratic codes, and constrained interfaces.",
+          "concepts": [
+            {
+              "label": "BEAVER enterprise Text-to-SQL benchmark",
+              "terms": ["BEAVER", "Beaver benchmark", "enterprise benchmark for text-to-SQL", "BEAVER text-to-SQL"],
+              "probe": "BEAVER enterprise text-to-SQL benchmark private warehouse schema rot",
+              "canonical": [
+                "Chen, Wenz, Stonebraker et al., 'BEAVER: An Enterprise Benchmark for Text-to-SQL' (arXiv:2409.02038)",
+                "Stonebraker & Chen, CACM Blog 'If You Think You Can Do Real-World Text-to-SQL'"
+              ]
+            },
+            {
+              "label": "RUBICON constrained agentic query interface",
+              "terms": ["RUBICON", "Agentic Query Language", "AQL FIND FROM WHERE", "messy enterprise data agent"],
+              "probe": "RUBICON agentic AI messy enterprise data constrained query interface wrappers",
+              "canonical": [
+                "Wenz, Treutwein, Demiralp & Stonebraker, 'RUBICON: Agentic AI for Messy Enterprise Data' (arXiv:2604.21413)"
+              ]
+            },
+            {
+              "label": "BenchPress human-in-the-loop benchmark curation",
+              "terms": ["BenchPress", "human-in-the-loop annotation text-to-SQL", "SQL log annotation benchmark"],
+              "probe": "BenchPress human-in-the-loop annotation system for text-to-SQL benchmark curation",
+              "canonical": [
+                "Wenz et al., 'BenchPress: A Human-in-the-Loop Annotation System for Rapid Text-to-SQL Benchmark Curation' (CIDR 2026)"
+              ]
+            },
+            {
+              "label": "Stonebraker CACM Text-to-SQL critique",
+              "terms": [
+                "If You Think You Can Do Real-World Text-to-SQL",
+                "real-world text-to-SQL",
+                "Stonebraker text-to-SQL",
+                "Michael Stonebraker (CACM)"
+              ],
+              "probe": "Stonebraker CACM blog real-world text-to-SQL Spider Bird overstate accuracy",
+              "canonical": [
+                "Stonebraker & Chen, 'If You Think You Can Do Real-World Text-to-SQL' (CACM Blog@CACM)"
+              ]
+            },
+            {
+              "label": "Spider 2.0 / enterprise workflow Text-to-SQL",
+              "terms": ["Spider 2.0", "Spider2.0", "enterprise text-to-SQL workflows"],
+              "probe": "Spider 2.0 evaluating language models on real-world enterprise text-to-SQL workflows",
+              "canonical": [
+                "Lei et al., 'Spider 2.0: Evaluating Language Models on Real-World Enterprise Text-to-SQL Workflows' (arXiv:2411.07763)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Schema linking, joins, values, and decomposition",
+          "note": "The dominant agent failure modes: inventing tables/columns, wrong joins, missing domain values, and one-shot queries without subtask scaffolding.",
+          "concepts": [
+            {
+              "label": "Schema linking / schema grounding",
+              "terms": ["schema linking", "schema linking text-to-SQL", "schema grounding", "table retrieval text-to-SQL"],
+              "probe": "schema linking as the bottleneck in text-to-SQL generation",
+              "canonical": [
+                "Lei et al., 'Re-examining the Importance of Schema Linking in Text-to-SQL Parsers'",
+                "BEAVER subtasks: multi-table retrieval, column mapping, join keys"
+              ]
+            },
+            {
+              "label": "Join key / relationship discovery",
+              "terms": ["join key", "join keys", "foreign key", "implicit joins"],
+              "probe": "detecting join keys when foreign keys are missing for text-to-SQL",
+              "canonical": ["BEAVER join-key subtask; Spider 2.0 JOIN error analyses"]
+            },
+            {
+              "label": "Domain value / instance linking",
+              "terms": ["domain knowledge", "database content", "value linking", "cell value retrieval"],
+              "probe": "linking natural language mentions to idiosyncratic database cell values",
+              "canonical": ["BIRD content errors; BEAVER domain-knowledge subtask"]
+            },
+            {
+              "label": "Query decomposition / multi-agent Text-to-SQL",
+              "terms": ["DIN-SQL", "MAC-SQL", "CHASE-SQL", "CHESS text-to-SQL", "decomposed text-to-SQL"],
+              "probe": "decomposing text-to-SQL into schema linking generation and self-correction modules",
+              "canonical": [
+                "Pourreza & Rafiei, DIN-SQL (NeurIPS 2023)",
+                "Wang et al., MAC-SQL; Pourreza et al., CHASE-SQL; Talaei et al., CHESS"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Execution feedback, repair, ambiguity, abstention",
+          "note": "List-then-query is not enough; agents need probe/validate/repair loops and must abstain under ambiguity — mirroring Studio MCP evals.",
+          "concepts": [
+            {
+              "label": "Execution-feedback self-correction",
+              "terms": [
+                "self-correction",
+                "Self-Correction",
+                "execution feedback",
+                "refiner",
+                "self-debugging"
+              ],
+              "probe": "using SQL execution errors to repair a generated query",
+              "canonical": ["MAC-SQL Refiner; DIN-SQL self-correction; ExCoT / VET probing lines"]
+            },
+            {
+              "label": "Ambiguity detection and clarification",
+              "terms": ["AmbiSQL", "ambiguous text-to-SQL", "clarification dialogue SQL", "underspecified query"],
+              "probe": "detecting ambiguous natural language database questions before generating SQL",
+              "canonical": ["AmbiSQL; Borthick information-request ambiguity studies"]
+            },
+            {
+              "label": "Abstention / selective prediction",
+              "terms": ["reliable text-to-SQL", "adaptive abstention", "selective prediction SQL"],
+              "probe": "abstaining from answering when text-to-SQL confidence is too low",
+              "canonical": ["Chen et al., 'Reliable Text-to-SQL with Adaptive Abstention'"]
+            },
+            {
+              "label": "Broken benchmarks and annotation error",
+              "terms": ["text-to-SQL benchmarks are broken", "annotation errors text-to-SQL", "benchmark quality Spider"],
+              "probe": "text-to-SQL benchmarks contain annotation errors that inflate reported accuracy",
+              "canonical": ["Jin et al., CIDR 'Text-to-SQL Benchmarks are Broken'"]
+            }
+          ]
+        },
+        {
+          "name": "Human SQL and PQL UX — transferable failure modes",
+          "note": "No peer-reviewed Celonis PQL UX study was found. Internal Prisma / PQL pain-point docs plus SQL HCI transfer.",
+          "concepts": [
+            {
+              "label": "Classic SQL human-factors errors",
+              "terms": [
+                "Smelcer",
+                "Reisner",
+                "user errors",
+                "SQL formulation errors",
+                "query composition"
+              ],
+              "probe": "human factors studies of SQL query composition join omission working memory",
+              "canonical": [
+                "Reisner, 'Human Factors Studies of Database Query Languages' (CSUR 1981)",
+                "Smelcer, 'User Errors in Database Query Composition' (IJHCS 1995)",
+                "Note: Reisner/Smelcer/Borthick remain closed OA; Taipalus cites the lineage"
+              ]
+            },
+            {
+              "label": "Modern SQL error taxonomies (education)",
+              "terms": ["Taipalus", "SQL query formulation errors", "SQL misconceptions", "Miedema SQL"],
+              "probe": "taxonomy of syntax semantic and logical errors in SQL query formulation",
+              "canonical": [
+                "Taipalus, Siponen & Vartiainen, 'Errors and Complications in SQL Query Formulation' (TOCE 2018)",
+                "Miedema et al., 'Identifying SQL Misconceptions of Novices' (ICER 2021)"
+              ]
+            },
+            {
+              "label": "SQL comprehension aids / QueryVis",
+              "terms": ["QueryVis", "QueryVis logic-based diagrams", "understand complicated SQL queries"],
+              "probe": "logic-based diagrams help users understand complicated SQL queries faster",
+              "canonical": ["Leventidis et al., QueryVis (SIGMOD 2020)"]
+            },
+            {
+              "label": "Celonis PQL usability (internal / design)",
+              "terms": ["PQL Users and their Pain Points", "Project Prisma", "Easy PQL", "implicit PQL", "explicit PQL"],
+              "probe": "Celonis PQL usability pain points Project Prisma explicit joins guided query building",
+              "canonical": [
+                "Internal: PQL Users and their Pain Points; Project Prisma Concept Overview / PRD; Easy PQL",
+                "Vogelgesang et al., 'Celonis PQL: A Query Language for Process Mining' (design, not HCI study)"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Safe agent execution — Bauplan and lakehouse ops",
+          "note": "Orthogonal to Text-to-SQL accuracy: branch isolation, preview/verify before publish, data contracts. Maps to pipeline vs transformation tool routing.",
+          "concepts": [
+            {
+              "label": "Proof-carrying / safe untrusted agents",
+              "terms": ["proof-carrying AI agents", "safe untrusted agents", "agentic lakehouse"],
+              "probe": "safe untrusted proof-carrying AI agents toward the agentic lakehouse",
+              "canonical": [
+                "Tagliabue & Greco, 'Safe, Untrusted, Proof-Carrying AI Agents' (arXiv:2510.09567)"
+              ]
+            },
+            {
+              "label": "Branch / verify / merge for agent writes",
+              "terms": ["GitLake", "git-for-data", "branch isolation lakehouse", "transactional pipelines agents"],
+              "probe": "git-for-data branch isolation verify then merge for lakehouse agents",
+              "canonical": [
+                "Bauplan GitLake / correct-by-design lakehouse papers (arXiv:2607.08319, 2602.02335)"
+              ]
+            },
+            {
+              "label": "Schema augmentation and plan-first validation",
+              "terms": [
+                "schema augmentation",
+                "plan-first",
+                "plan-first validation",
+                "feedback-driven regeneration",
+                "constrained prompts"
+              ],
+              "probe": "schema augmentation constrained prompts feedback-driven regeneration plan-first SQL validation",
+              "canonical": [
+                "Bauplan 'Querying Everything Everywhere All at Once' text-to-SQL submodule practices"
+              ]
+            },
+            {
+              "label": "Data contracts for agents",
+              "terms": [
+                "data contracts",
+                "data contracts as types",
+                "typed table contracts",
+                "Skill Issues"
+              ],
+              "probe": "data contracts as types across languages for lakehouse agents",
+              "canonical": [
+                "Bauplan 'Not Your Usual Type(s)' / 'Skill Issues: Data-Centric Optimization of Lakehouse Agents'"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Studio MCP tool-gate failures (Celonis telemetry)",
+          "note": "Operational gap: skills say list-then-query but omit probe-then-generate; 403s are auth; transformation execute is wrong tool vs pipeline.",
+          "concepts": [
+            {
+              "label": "Schema-before-query gate",
+              "terms": [
+                "get_perspective_schema",
+                "query_perspective",
+                "schema-before-query",
+                "list_data_lake_schemas"
+              ],
+              "probe": "agent must load perspective or lake schema before issuing a query",
+              "canonical": [
+                "Slack #ask-apollo query_perspective telemetry (31% MCP fail; missing table/column dominant)",
+                "build-context-model Phase 1 list→query order",
+                "Outbox/agentic-sql-reliability/studio-mcp-gates.md"
+              ]
+            },
+            {
+              "label": "Probe-before-generate / LIMIT-1 gate",
+              "terms": [
+                "LIMIT 1",
+                "validate_pql",
+                "dp_preview_datasets",
+                "probe-before-generate",
+                "list-then-test-then-generate"
+              ],
+              "probe": "small test query against listed columns before generating the real SQL or PQL",
+              "canonical": [
+                "Studio MCP failure analysis: list_* is not enough; need probe then generate",
+                "Text-to-SQL execution-feedback literature",
+                "Outbox/agentic-sql-reliability/studio-mcp-gates.md"
+              ]
+            },
+            {
+              "label": "Authorization vs generation failures",
+              "terms": [
+                "HTTP 403",
+                "query_data_lake",
+                "authorization failure",
+                "auth vs generation"
+              ],
+              "probe": "HTTP 403 on data lake query is an authorization failure not a missing list_schemas step",
+              "canonical": [
+                "MCP telemetry: ~2646/7633 query_data_lake failures are HTTP 403",
+                "Outbox/agentic-sql-reliability/studio-mcp-gates.md"
+              ]
+            },
+            {
+              "label": "Pipeline vs transformation tool routing",
+              "terms": [
+                "dp_execute_transformation",
+                "dp_execute_pipeline",
+                "Function with ID",
+                "dp_preview_datasets"
+              ],
+              "probe": "wrong tool dp_execute_transformation vs pipeline orchestration and missing preview",
+              "canonical": [
+                "MCP telemetry: 465 dp_execute_transformation fails — wrong function identity, not SQL schema",
+                "Outbox/agentic-sql-reliability/studio-mcp-gates.md"
+              ]
+            }
+          ]
+        }
+      ]
     }
   }
 }

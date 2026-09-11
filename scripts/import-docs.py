@@ -38,9 +38,10 @@ import subprocess
 import sys
 import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import requests
 from lxml import html as H
@@ -59,6 +60,7 @@ _iwb = importlib.util.module_from_spec(_spec)
 sys.modules["iwb"] = _iwb
 _spec.loader.exec_module(_iwb)
 html_to_markdown = _iwb.html_to_markdown
+strip_noise = _iwb.strip_noise
 
 
 @dataclass
@@ -78,9 +80,17 @@ class DocSource:
     sitemaps: tuple[str, ...] = ()
     keep_re: str = ""
     md_suffix: bool = False         # fetch "<url>.md" for raw markdown (Docusaurus)
+    # version-partitioned doc sites: a regex with a ``ver`` group over the URL.
+    # Only the highest version found is kept (see ``_pick_latest_version``).
+    version_pick: str = ""
+    # sitemaps that declare the wrong host (see ``_rewrite_host``)
+    rewrite_host: str = ""
     # crawl / toc
     seeds: tuple[str, ...] = ()     # crawl: BFS seeds; toc: table-of-contents page(s)
     prefix: str = ""                # crawled/toc URLs must start with this
+    # httpd autoindex of per-release directories: descend into the newest one
+    # before crawling, instead of pinning a version (see ``_autoindex_latest``)
+    autoindex: bool = False
     # pages
     pages: tuple[str, ...] = ()     # explicit list of page URLs to fetch as-is
     # git
@@ -89,6 +99,17 @@ class DocSource:
     subdir: str = ""
     clone_dir: str = ""             # reuse an existing checkout (relative to DOCS_ROOT)
     file_globs: tuple[str, ...] = ("*.md",)   # which files to ingest from a git checkout
+    # docs monorepo: fetch only these paths, and only at the tip, so one section
+    # of a multi-gigabyte repository costs megabytes (see ``_sparse_clone``)
+    sparse: tuple[str, ...] = ()
+    # doc site whose hosted URL is derivable from the repo path rather than
+    # matched through a sitemap: ``{slug}`` is the file's path below ``subdir``,
+    # without its suffix
+    url_template: str = ""
+    # repo files the site never publishes as pages of their own (transcluded
+    # includes, fragments): a path-derived URL would name a 404 for each, so
+    # these are cited by their GitHub blob URL instead
+    unhosted_re: str = ""
     # repo-backed doc sites: sitemap URLs are matched to the repo files they are
     # generated from, so the provenance marker names the hosted page
     url_map: tuple[tuple[str, str], ...] = ()   # explicit relpath -> hosted URL
@@ -104,6 +125,52 @@ class DocSource:
     # second collection for the same company (the default file name is derived
     # from ``company``, so a company with two sources needs one of them named)
     filename: str = ""
+
+
+ASF_LICENSE = "Apache-2.0 \u2014 \u00a9 The Apache Software Foundation"
+
+# Apache doc sites translate into a dozen languages under a locale segment
+# (``/zh/``, ``/zh-cn/``, ``/ja/`` …). The translations are a partial, older
+# mirror of the English pages, so importing them doubles the file and adds
+# nothing an English query can reach.
+_ASF_LOCALES = (r"/(?:zh|zh-cn|zh-CN|zh-tw|zh-Hans|ja|jp|ko|kr|fr|de|es|pt|"
+                r"pt-br|ru|it|tr|id|uk|vi|fa)(?:/|$)")
+
+# Docusaurus (which most newer Apache projects use) serves the *current*
+# release unversioned at ``/docs/<page>`` and every archived release under
+# ``/docs/<version>/<page>``, plus an unreleased ``/docs/next/``. Dropping the
+# version-prefixed paths therefore keeps exactly one copy of the manual — the
+# released one — without having to name a version that goes stale.
+_ASF_ARCHIVED = r"/docs/(?:\d+(?:[.\d]*)(?:\.x)?|next|master|nightly|dev|in-dev)(?:/|$)"
+
+
+def _asf(key: str, company: str, title: str, **kw) -> DocSource:
+    """A ``DocSource`` with the Apache Software Foundation defaults filled in.
+
+    Every ASF project shares a license, a host pattern (``<key>.apache.org``,
+    or ``<key>.incubator.apache.org`` while incubating) and a ``/docs/`` root,
+    so an entry only has to state what deviates. ``drop`` is *added to* the
+    locale filter rather than replacing it.
+    """
+    host = kw.pop("host", f"{key}.apache.org")
+    docs = kw.pop("docs", "/docs/")
+    drops = [_ASF_LOCALES] if kw.pop("locales", True) else []
+    if kw.pop("archived", False):
+        drops.append(_ASF_ARCHIVED)
+    if drop := kw.pop("drop", ""):
+        drops.append(drop)
+    kw.setdefault("method", "sitemap")
+    if kw["method"] == "sitemap":
+        kw.setdefault("sitemaps", (f"https://{host}/sitemap.xml",))
+        kw.setdefault("keep_re", rf"^https?://{re.escape(host)}{docs}")
+    elif kw["method"] == "crawl":
+        kw.setdefault("seeds", (f"https://{host}{docs}",))
+        kw.setdefault("prefix", f"https://{host}{docs}")
+    kw.setdefault("drop_re", "|".join(f"(?:{d})" for d in drops))
+    kw.setdefault("cap", 250)
+    kw.setdefault("license", ASF_LICENSE)
+    kw.setdefault("source_url", f"https://{host}{docs}")
+    return DocSource(key=key, company=company, title=title, **kw)
 
 
 SOURCES: list[DocSource] = [
@@ -299,6 +366,116 @@ SOURCES: list[DocSource] = [
         cap=120, source_url="https://github.com/databrickslabs/ontos",
         license="Databricks License \u2014 \u00a9 2025 Databricks, Inc.",
     ),
+    # Microsoft Fabric IQ is the closest competitor statement of what the
+    # Context Model is: a governed *ontology* item over lake data (entity types,
+    # properties, relationship types, data bindings, rules), the Graph item that
+    # holds its instance graph, and the agent surfaces that consume it. The
+    # Graph tree comes with it because ontology does not document its own query
+    # or storage semantics \u2014 it defers to Graph and GQL for both.
+    #
+    # Read from the repository the site is built from, per the rule the Bitol
+    # and Ontos entries follow, but that repository carries every screenshot in
+    # the Fabric documentation set (~3.3 GB) for ~2 MB of IQ markdown, hence
+    # ``sparse``. Learn publishes no per-section sitemap and no raw-markdown
+    # endpoint (``<page>.md`` answers 404), so the hosted page each file renders
+    # to is derived from its path rather than matched through a sitemap.
+    DocSource(
+        key="fabric-iq", company="Microsoft", method="git",
+        title="Microsoft Fabric IQ \u2014 Ontology, Graph & Planning Documentation",
+        filename="Microsoft Fabric IQ Documentation.md",
+        repo="https://github.com/MicrosoftDocs/fabric-docs",
+        branch="main", subdir="docs",
+        sparse=("/docs/iq/*.md", "/docs/iq/**/*.md",
+                "/docs/iq/ontology/*.yml",
+                "/docs/graph/*.md", "/docs/graph/**/*.md"),
+        file_globs=("iq/**/*.md", "graph/**/*.md",
+                    "iq/ontology/resources-frequently-asked-questions.yml"),
+        prefer=r"^docs/iq/(?:overview|get-started|ontology/(?:overview|resources-glossary"
+               r"|concepts|how-to))",
+        cap=400,
+        url_template="https://learn.microsoft.com/en-us/fabric/{slug}",
+        unhosted_re=r"/includes/",
+        source_url="https://learn.microsoft.com/en-us/fabric/iq/",
+        license="CC-BY-4.0 \u2014 \u00a9 Microsoft Corporation",
+    ),
+    # Real-Time Intelligence is where Fabric IQ's two loose ends are actually
+    # specified: an *eventhouse* is the store a time-series property binds to,
+    # and *Activator* is what evaluates an ontology rule. It also holds the
+    # eventstream ingestion side and the operations agent the ontology docs
+    # hand off to. Same repository and same sparse mechanism as `fabric-iq`.
+    DocSource(
+        key="fabric-rti", company="Microsoft", method="git",
+        title="Microsoft Fabric Real-Time Intelligence \u2014 Eventhouse, KQL "
+              "Databases, Eventstreams & Activator Documentation",
+        filename="Microsoft Fabric Real-Time Intelligence Documentation.md",
+        repo="https://github.com/MicrosoftDocs/fabric-docs",
+        branch="main", subdir="docs",
+        sparse=("/docs/real-time-intelligence/*.md",
+                "/docs/real-time-intelligence/**/*.md"),
+        file_globs=("real-time-intelligence/**/*.md",),
+        prefer=r"^docs/real-time-intelligence/(?:overview|architecture|event"
+               r"|create-|one-logical-copy|kql|table-|data-activator/|operations-agent)",
+        cap=500,
+        url_template="https://learn.microsoft.com/en-us/fabric/{slug}",
+        unhosted_re=r"/includes/",
+        source_url="https://learn.microsoft.com/en-us/fabric/real-time-intelligence/",
+        license="CC-BY-4.0 \u2014 \u00a9 Microsoft Corporation",
+    ),
+    # An eventhouse is a Kusto cluster, and none of what makes it interesting is
+    # in the Fabric documentation: the query language, and the engine policies
+    # (update, retention, caching, partitioning, materialized views) that decide
+    # what a "real-time" store actually costs. KQL is a dataflow query language
+    # over semistructured data with graph operators (`graph-match`,
+    # `node-degree-in`) and time-series operators in the same surface, which is
+    # the comparison the SQL dialects here cannot supply. Held for the same
+    # reason as GoogleSQL and the SAP HANA/Oracle dialects: the language, not
+    # the product. `api/` and `tools/` are dropped \u2014 client SDKs and Kusto.Explorer
+    # are the product's plumbing, not its semantics.
+    DocSource(
+        key="kusto", company="Microsoft", method="git",
+        title="Kusto Query Language (KQL) \u2014 Query, Management & Concepts Reference",
+        filename="Kusto Query Language (KQL) Reference.md",
+        repo="https://github.com/MicrosoftDocs/dataexplorer-docs",
+        branch="main", subdir="data-explorer",
+        sparse=("/data-explorer/kusto/*.md", "/data-explorer/kusto/**/*.md"),
+        file_globs=("kusto/**/*.md",),
+        drop_re=r"^data-explorer/kusto/(?:api|tools)/",
+        prefer=r"^data-explorer/kusto/(?:concepts/|query/(?:index|tutorials|scalar"
+               r"|kql-|graph-|time-series|series-)|management/(?:index|.*polic))",
+        cap=1200,
+        url_template="https://learn.microsoft.com/en-us/{slug}",
+        unhosted_re=r"/includes/",
+        source_url="https://learn.microsoft.com/en-us/kusto/query/",
+        license="CC-BY-4.0 \u2014 \u00a9 Microsoft Corporation",
+    ),
+    # Datadog is the reference system the Celonis Context Model's event handling
+    # is argued from ("events are data, not schema"; one index across all
+    # sources, not one per source), so its *query* surfaces are the part worth
+    # holding: span search, Trace Queries (the `->` / `=>` structural operators
+    # over a trace), the trace pipeline/retention rules those operators depend
+    # on, DDSQL, and the log-management pipeline that turns raw logs into facets
+    # and metrics. Every page serves clean markdown at "<url>.md".
+    #
+    # `ddsql_reference/data_directory/` is 2,100+ generated per-dataset schema
+    # stubs (one per AWS/Azure/GCP resource type) and would drown the rest, so
+    # it is dropped; the language reference itself is a handful of pages.
+    DocSource(
+        key="datadog", company="Datadog", method="sitemap",
+        title="Datadog \u2014 Trace Explorer, Trace Queries, DDSQL & Log Management "
+              "Documentation",
+        sitemaps=("https://docs.datadoghq.com/en/sitemap.xml",),
+        keep_re=r"^https://docs\.datadoghq\.com/"
+                r"(tracing|ddsql_reference|ddsql_editor|logs|events|opentelemetry)(/|$)",
+        md_suffix=True,
+        prefer=r"/(tracing/trace_explorer|tracing/glossary|tracing/trace_pipeline"
+               r"|ddsql_reference|ddsql_editor|logs/explorer|logs/log_configuration"
+               r"|events)",
+        drop_re=r"/(ddsql_reference/data_directory|tracing/trace_collection/"
+                r"(compatibility_requirements|library_config|automatic_instrumentation)"
+                r"|tracing/guide/setting_primary_tags|integrations)/",
+        cap=450, source_url="https://docs.datadoghq.com/tracing/trace_explorer/",
+        license="\u00a9 Datadog, Inc.",
+    ),
     DocSource(
         key="flink", company="Apache Flink", method="sitemap",
         title="Apache Flink Documentation (stable)",
@@ -353,6 +530,61 @@ SOURCES: list[DocSource] = [
         cap=50,
         source_url="https://leanx.eu/en/sap/table/cdpos.html",
         license="Reference data \u00a9 the respective vendor; page \u00a9 LeanX",
+    ),
+    # Jira Data Center is the source system behind most ticket/ITSM process
+    # mining, and it is the rare case where the *vendor* documents its own
+    # tables: the `database-*` family names the columns of the change history,
+    # the custom-field value tables, the OS_* workflow tables and the Embedded
+    # Crowd user directories, i.e. exactly the joins an extraction has to get
+    # right. Discovery is by sitemap rather than an enumerated list so a new
+    # `database-…` page is picked up on the next run, and the two pages that
+    # explain *how* the tables are reached come with it — the Entity Engine
+    # (OfBiz) overview in `architecture-overview`, and `entity-properties`,
+    # which is where entity data that has no column of its own is kept as JSON.
+    #
+    # Only Data Center has a database a reader can query; the Cloud docs are
+    # REST-only, which is why nothing under /cloud/ is in this collection.
+    DocSource(
+        key="jira-db", company="Atlassian", method="sitemap",
+        collection="Source Systems Knowledge",
+        title="Jira Data Center \u2014 Database Schema & Data Model",
+        filename="Jira Data Center Database Schema & Data Model.md",
+        sitemaps=("https://developer.atlassian.com/server/jira/platform/sitemap.xml",),
+        keep_re=r"^https://developer\.atlassian\.com/server/jira/platform/"
+                r"(database-[a-z-]+|entity-properties|architecture-overview)/$",
+        prefer=r"/database-schema/",
+        cap=40,
+        source_url="https://developer.atlassian.com/server/jira/platform/database-schema/",
+        license="\u00a9 Atlassian Pty Ltd",
+    ),
+    # The data pipeline is the sanctioned alternative to reading those tables:
+    # a scheduled CSV export of issues, issue fields, issue *history*, links,
+    # SLA cycles and users, versioned by an export schema. The export-schema
+    # page is the valuable half — it is a field-by-field description of the
+    # extract, and `issue_history` is a Jira event log in all but name — and it
+    # lives in the product docs rather than the developer site, so both are
+    # taken. Their URLs are the `/display/<space>/<page+title>/` aliases, which
+    # redirect to the current version's page id (…-1027142324.html): the id
+    # changes with every Data Center release, the alias does not.
+    DocSource(
+        key="jira-data-pipeline", company="Atlassian", method="pages",
+        collection="Source Systems Knowledge",
+        title="Jira Data Center \u2014 Data Pipeline & Export Schema "
+              "(issues, issue history, links, SLA cycles, users)",
+        filename="Jira Data Center Data Pipeline & Export Schema.md",
+        pages=(
+            "https://confluence.atlassian.com/display/adminjiraserver/data+pipeline/",
+            "https://confluence.atlassian.com/display/adminjiraserver/"
+            "data+pipeline+export+schema/",
+            "https://developer.atlassian.com/server/data-pipeline/about/about/",
+            "https://developer.atlassian.com/server/data-pipeline/security/authentication/",
+            "https://developer.atlassian.com/server/data-pipeline/rest/api-group-export/",
+            "https://developer.atlassian.com/server/data-pipeline/rest/api-group-config/",
+        ),
+        cap=20,
+        source_url="https://confluence.atlassian.com/display/adminjiraserver/"
+                   "data+pipeline+export+schema/",
+        license="\u00a9 Atlassian Pty Ltd",
     ),
     # --- Specifications: standards & ontologies ------------------------------
     # W3C Semantic Web standards (RDF + OWL) — server-rendered TR pages.
@@ -461,6 +693,41 @@ SOURCES: list[DocSource] = [
         source_url="https://bitol-io.github.io/open-data-product-standard/latest/",
         license="Apache-2.0 \u2014 \u00a9 Bitol / LF AI & Data Foundation",
     ),
+    # Open Knowledge Format (OKF) \u2014 Google's proposal for shipping a knowledge
+    # corpus as a directory of markdown files with YAML frontmatter, aimed at a
+    # corpus that agents write and maintain rather than one authored once: the
+    # frontmatter makes provenance, trust, freshness, lifecycle and attestation
+    # first-class. It sits with ODCS/ODPS and Ossie \u2014 those standardise the
+    # contract over data, the product around it and the semantic layer between
+    # tools; OKF standardises the prose *about* them.
+    #
+    # The specification's canonical home is this repository. The copy under
+    # ``okf/`` in ``GoogleCloudPlatform/knowledge-catalog`` is a frozen snapshot
+    # its own README disowns \u2014 byte-identical to this text today, and guaranteed
+    # not to be tomorrow.
+    #
+    # The four example bundles are taken with the spec because OKF is a
+    # convention rather than a schema, so the worked corpora (acme_retail's
+    # attested metrics, and the BigQuery public datasets modelled as tables,
+    # joins and metrics) are where the conventions are actually pinned down.
+    # The reference agent's prompts come too: they are the statement of how a
+    # bundle is meant to be *written* by an agent, which is the format's whole
+    # premise and appears nowhere in the specification.
+    DocSource(
+        key="okf", company="Google Cloud", method="git",
+        collection="Specifications",
+        title="Open Knowledge Format (OKF) v0.2 \u2014 Specification, Example "
+              "Bundles & Reference-Agent Prompts",
+        filename="Open Knowledge Format (OKF).md",
+        repo="https://github.com/GoogleCloudPlatform/open-knowledge-format",
+        branch="main",
+        file_globs=("*.md",),
+        drop_re=r"^(CONTRIBUTING|CODE_OF_CONDUCT|LICENSE)\.md$",
+        prefer=r"^(SPEC|README)\.md$",
+        cap=130,
+        source_url="https://github.com/GoogleCloudPlatform/open-knowledge-format",
+        license="Apache-2.0 \u2014 \u00a9 Google LLC",
+    ),
     # HQDM — Matthew West's 4-dimensionalist data model, as implemented for the
     # UK Information Management Framework. The book is paywalled; these repos are
     # the open expression of the same entity-relationship model.
@@ -482,6 +749,42 @@ SOURCES: list[DocSource] = [
         source_url="https://github.com/gchq/MagmaCore",
         license="Apache-2.0 \u2014 \u00a9 Crown Copyright (GCHQ)",
     ),
+    # OpenTelemetry — the normative definition of a trace: trace/span ids minted
+    # by context propagation, the parent-child relation the tracing arrow is
+    # read off, and span *links*, which are the observability world's answer to
+    # "an event referencing more than one correlation value". The specification
+    # repo is the normative text; the semantic conventions repo is what actually
+    # names the attributes, so both are taken.
+    DocSource(
+        key="opentelemetry-spec", company="OpenTelemetry", method="git",
+        collection="Specifications",
+        title="OpenTelemetry Specification \u2014 Traces, Context Propagation, "
+              "Metrics, Logs & Protocol",
+        filename="OpenTelemetry Specification.md",
+        repo="https://github.com/open-telemetry/opentelemetry-specification",
+        file_globs=("*.md",),
+        drop_re=r"^(CONTRIBUTING|CHANGELOG|CODE_OF_CONDUCT|README-|\.github/"
+                r"|oteps/|internal/|spec-compliance-matrix)",
+        prefer=r"^specification/(overview|trace/api|trace/sdk|context|logs|"
+               r"common)",
+        cap=200,
+        source_url="https://opentelemetry.io/docs/specs/otel/",
+        license="Apache-2.0 \u2014 \u00a9 The OpenTelemetry Authors",
+    ),
+    DocSource(
+        key="opentelemetry-semconv", company="OpenTelemetry", method="git",
+        collection="Specifications",
+        title="OpenTelemetry Semantic Conventions",
+        filename="OpenTelemetry Semantic Conventions.md",
+        repo="https://github.com/open-telemetry/semantic-conventions",
+        file_globs=("*.md",),
+        drop_re=r"^(CONTRIBUTING|CHANGELOG|CODE_OF_CONDUCT|\.github/"
+                r"|internal/|supplementary-guidelines/)",
+        prefer=r"^docs/(general|http|database|messaging|rpc)/",
+        cap=200,
+        source_url="https://opentelemetry.io/docs/specs/semconv/",
+        license="Apache-2.0 \u2014 \u00a9 The OpenTelemetry Authors",
+    ),
     # Industrial Ontologies Foundry — the BFO-based (3D) counterpart, kept
     # alongside HQDM so the 3D/4D contrast is documented from both sides.
     DocSource(
@@ -492,6 +795,51 @@ SOURCES: list[DocSource] = [
         file_globs=("*.md",),
         source_url="https://www.industrialontologies.org/",
         license="\u00a9 Industrial Ontologies Foundry / OAGi (CC BY)",
+    ),
+    # --- IDSA: the normative half of the data-spaces corpus -------------------
+    # The position papers harvested by scripts/idsa-papers.py argue the case;
+    # these two repos are what the argument resolves to. Both are published as
+    # GitBook sites generated from markdown already in git, so the repo is the
+    # better source (see the note on repo-backed doc sites in SOURCES.md \u00a73).
+    # IDS-RAM 4.0 is the layered reference architecture \u2014 roles, the connector,
+    # the five layers, certification \u2014 and is the document the papers page links
+    # to instead of offering a PDF.
+    DocSource(
+        key="ids-ram", company="IDSA", method="git",
+        collection="Specifications",
+        title="IDS Reference Architecture Model (IDS-RAM) 4.0",
+        filename="IDS Reference Architecture Model (IDS-RAM) 4.0.md",
+        repo="https://github.com/International-Data-Spaces-Association/IDS-RAM_4_0",
+        branch="main",
+        file_globs=("*.md",),
+        drop_re=r"^(CHANGELOG|CODE_OF_CONDUCT|CONTRIBUTING|LICENSE)",
+        prefer=r"^(README\.md|documentation/[1-5]_)",
+        cap=120,
+        source_url="https://docs.internationaldataspaces.org/ids-knowledgebase/v/ids-ram-4/",
+        license="CC BY 4.0 \u2014 \u00a9 International Data Spaces Association",
+    ),
+    # The Dataspace Protocol is the wire contract the RAM's connector speaks:
+    # catalog, contract negotiation (ODRL) and transfer process. The JSON
+    # Schemas, message examples and SHACL shapes are taken alongside the prose
+    # because they, not the specification text, are what an implementation is
+    # actually checked against \u2014 the same reason the Bitol JSON Schemas are held.
+    DocSource(
+        key="dataspace-protocol", company="IDSA", method="git",
+        collection="Specifications",
+        title="Dataspace Protocol (DSP) \u2014 Catalog, Contract Negotiation & "
+              "Transfer Process, with JSON Schemas and SHACL Shapes",
+        filename="Dataspace Protocol (DSP).md",
+        repo="https://github.com/International-Data-Spaces-Association/ids-specification",
+        branch="main",
+        file_globs=("*.md", "*.json", "*.ttl"),
+        drop_re=r"^(CONTRIBUTING|LICENSE|\.github/|CODE_OF_CONDUCT)",
+        prefer=r"^(README\.md|SUMMARY\.md|model/|common/|catalog/catalog\.|"
+               r"negotiation/contract\.|transfer/transfer\.)",
+        cap=260,
+        source_url="https://docs.internationaldataspaces.org/ids-knowledgebase/"
+                   "dataspace-protocol",
+        license="CC BY 4.0 / Apache-2.0 \u2014 \u00a9 International Data Spaces "
+                "Association",
     ),
     # --- Philosophy: encyclopedia entries on time, persistence and process ---
     # The library argues about whether a thing stays the same thing through
@@ -572,6 +920,328 @@ SOURCES: list[DocSource] = [
         cap=40, source_url="https://iep.utm.edu/",
         license="\u00a9 the individual authors / IEP \u2014 free to read",
     ),
+    # --- Apache Software Foundation: the data/cloud project documentation ----
+    # Selected and probed by ``scripts/apache-projects.py`` (see SOURCES.md §3b
+    # for why the ASF's own category listing is not sufficient to enumerate
+    # them, and ``imports/apache-doc-probe.csv`` for the evidence behind each
+    # method below). Apache Flink and DataFusion are registered further up,
+    # from before this section existed.
+    #
+    # Apache Ossie is the odd one out and comes first because it is a
+    # *specification*, not a product: a vendor-neutral YAML format for metrics,
+    # dimensions and their relationships, contributed to the incubator in
+    # 2026-07 as the former Open Semantic Interchange (OSI, started by
+    # Snowflake). It is the semantic-layer counterpart to the Bitol data
+    # contract/product standards already held, and it belongs in
+    # ``Specifications/`` with them. The site is five pages plus a news
+    # archive; the specification, its JSON Schema, the expression language, the
+    # ontology and the per-vendor converters all live in the repo, so the repo
+    # is what is read. The converter READMEs earn their place: each is a
+    # documented mapping between Ossie and one vendor's semantic model
+    # (Databricks metric views, dbt, GoodData, Honeydew, NVIDIA GSF, Omni,
+    # Snowflake, Salesforce, Polaris), which is the interoperability claim
+    # stated in concrete terms. Their tests and lockfiles are not.
+    _asf(
+        "ossie", "Apache Ossie",
+        "Apache Ossie (incubating) \u2014 Open Semantic Interchange: "
+        "Specification, Expression Language, Ontology, JSON Schema & Converters",
+        method="git", collection="Specifications",
+        filename="Apache Ossie (Open Semantic Interchange).md",
+        repo="https://github.com/apache/ossie", branch="main",
+        file_globs=("*.md", "*.json", "*.yaml"),
+        drop_re=r"(?:^\.github/|/tests?/|/__snapshots__/|uv\.lock|"
+                r"^cli/go\.|\.asf\.yaml)",
+        prefer=r"^(README\.md|core-spec/|ontology/|docs/|examples/|"
+               r"converters/README\.md|ROADMAP\.md)",
+        cap=80, source_url="https://ossie.apache.org/spec/",
+        license=ASF_LICENSE + " (incubating)",
+    ),
+    # Table formats, catalogs and the columnar file formats under them.
+    _asf("iceberg", "Apache Iceberg", "Apache Iceberg Documentation",
+         docs="/docs/latest/", cap=350),
+    _asf("hudi", "Apache Hudi", "Apache Hudi Documentation",
+         archived=True, cap=350),
+    _asf("paimon", "Apache Paimon", "Apache Paimon Documentation",
+         method="crawl", cap=250),
+    # Incubating projects are reachable at both ``<key>.incubator.apache.org``
+    # (what the podlings register lists) and the short ``<key>.apache.org``
+    # their own sitemaps declare. The short form is used here: it is the name
+    # the site self-identifies by, and the one that survives graduation.
+    _asf("xtable", "Apache XTable", "Apache XTable (incubating) Documentation",
+         archived=True, cap=100),
+    _asf("polaris", "Apache Polaris",
+         "Apache Polaris \u2014 Iceberg REST Catalog Documentation",
+         docs="/releases/", version_pick=r"/releases/(?P<ver>\d+\.\d+\.\d+)/",
+         cap=150),
+    # ``/docs/latest/`` exists but is a 300-byte redirect stub rather than a
+    # served tree, so the release directories are what the sitemap offers.
+    _asf("gravitino", "Apache Gravitino", "Apache Gravitino Documentation",
+         version_pick=r"/docs/(?P<ver>\d+\.\d+\.\d+(?:-incubating)?)/",
+         cap=350),
+    _asf("amoro", "Apache Amoro",
+         "Apache Amoro (incubating) \u2014 Lakehouse Management Documentation",
+         method="crawl", docs="/docs/latest/", cap=120),
+    _asf("orc", "Apache ORC", "Apache ORC Documentation",
+         method="crawl", cap=120),
+    _asf("parquet", "Apache Parquet", "Apache Parquet Documentation",
+         cap=120),
+    _asf("avro", "Apache Avro", "Apache Avro Documentation",
+         sitemaps=("https://avro.apache.org/en/sitemap.xml",),
+         version_pick=r"/docs/(?P<ver>\d+\.\d+\.\d+)/",
+         drop=r"/api-(?:c|c\+\+|cpp|csharp|py|rust)/", cap=200),
+    _asf("arrow", "Apache Arrow",
+         "Apache Arrow Documentation (format, C++, Python, Java, Go, Rust)",
+         method="crawl",
+         drop=r"/(?:_sources|_static|genindex|py-modindex|search)"
+              r"|/(?:generated|api)/", cap=350),
+    # Query engines, warehouses and OLAP stores.
+    _asf("calcite", "Apache Calcite",
+         "Apache Calcite \u2014 SQL Parser, Optimizer & Adapters Documentation",
+         method="crawl", cap=150),
+    _asf("hive", "Apache Hive", "Apache Hive Documentation",
+         docs="/docs/latest/", cap=300),
+    _asf("impala", "Apache Impala", "Apache Impala Documentation",
+         method="crawl", cap=300),
+    _asf("drill", "Apache Drill", "Apache Drill Documentation",
+         method="crawl", cap=350),
+    _asf("doris", "Apache Doris", "Apache Doris Documentation",
+         version_pick=r"/docs/(?P<ver>\d+\.[\dx]+)/", drop=r"/docs/dev/",
+         prefer=r"/sql-manual/", cap=400),
+    _asf("kylin", "Apache Kylin", "Apache Kylin Documentation",
+         archived=True, cap=250),
+    _asf("druid", "Apache Druid", "Apache Druid Documentation",
+         docs="/docs/latest/", cap=350),
+    # GitBook publishes a sitemap *index* whose other members are frozen
+    # release-N.N.N mirrors of the same pages; read only the live one.
+    _asf("pinot", "Apache Pinot", "Apache Pinot Documentation",
+         host="docs.pinot.apache.org", docs="/",
+         sitemaps=("https://docs.pinot.apache.org/sitemap-pages.xml",),
+         cap=400),
+    _asf("kudu", "Apache Kudu", "Apache Kudu Documentation",
+         method="crawl", cap=150),
+    _asf("cloudberry", "Apache Cloudberry",
+         "Apache Cloudberry (incubating) Documentation \u2014 MPP analytical "
+         "database (Greenplum lineage)",
+         version_pick=r"/docs/(?P<ver>\d+\.[\dx]+)/", md_suffix=True, cap=350),
+    _asf("asterixdb", "Apache AsterixDB",
+         "Apache AsterixDB \u2014 SQL++ and the Semistructured BDMS",
+         method="crawl", autoindex=True, drop=r"\?C=", cap=150),
+    _asf("wayang", "Apache Wayang",
+         "Apache Wayang \u2014 Cross-Platform Data Processing Documentation",
+         archived=True, cap=100),
+    # Gluten publishes no doc site — `/docs/` is a plain httpd autoindex of
+    # per-release directories, so the crawl descends into the newest one and
+    # skips the column-sort links the autoindex adds.
+    _asf("gluten", "Apache Gluten",
+         "Apache Gluten \u2014 Native Execution for Spark Documentation",
+         method="crawl", autoindex=True, drop=r"\?C=", cap=200),
+    _asf("systemds", "Apache SystemDS",
+         "Apache SystemDS \u2014 Declarative ML Pipelines (DML) Documentation",
+         method="crawl", autoindex=True, drop=r"\?C=", cap=150),
+    _asf("spark", "Apache Spark", "Apache Spark Documentation",
+         method="crawl", docs="/docs/latest/",
+         drop=r"/api/|/docs/latest/(?:api|generated)/", cap=350),
+    # Graph, geospatial and search.
+    # `/docs/current/` is an index whose links are script-generated, so a crawl
+    # finds nothing to follow; the manual is a few enormous single-page books
+    # (the reference alone is ~290 KB of prose), so they are named directly.
+    _asf("tinkerpop", "Apache TinkerPop",
+         "Apache TinkerPop \u2014 Gremlin Reference Documentation",
+         method="pages",
+         pages=("https://tinkerpop.apache.org/docs/current/reference/",
+                "https://tinkerpop.apache.org/docs/current/tutorials/"
+                "getting-started/",
+                "https://tinkerpop.apache.org/docs/current/tutorials/"
+                "the-gremlin-console/",
+                "https://tinkerpop.apache.org/docs/current/tutorials/"
+                "gremlin-language-variants/",
+                "https://tinkerpop.apache.org/docs/current/recipes/",
+                "https://tinkerpop.apache.org/docs/current/upgrade/",
+                "https://tinkerpop.apache.org/docs/current/dev/provider/"),
+         cap=20, source_url="https://tinkerpop.apache.org/docs/current/"),
+    _asf("hugegraph", "Apache HugeGraph", "Apache HugeGraph Documentation",
+         sitemaps=("https://hugegraph.apache.org/en/sitemap.xml",), cap=200),
+    _asf("age", "Apache AGE",
+         "Apache AGE \u2014 Graph Extension for PostgreSQL",
+         method="crawl", docs="/age-manual/master/", cap=100),
+    _asf("sedona", "Apache Sedona",
+         "Apache Sedona \u2014 Cluster Computing for Geospatial Data",
+         method="crawl", docs="/latest/", cap=300),
+    _asf("graphar", "Apache GraphAr",
+         "Apache GraphAr (incubating) \u2014 Graph File Format Documentation",
+         archived=True, cap=100),
+    # GeaFlow's sitemap declares apache.github.io as its host; only the paths
+    # are usable (see ``_rewrite_host``).
+    _asf("geaflow", "Apache GeaFlow",
+         "Apache GeaFlow (incubating) \u2014 Streaming Graph Computing",
+         rewrite_host="geaflow.apache.org", archived=True, cap=150),
+    # Operational stores: wide-column, key-value, time-series and consensus.
+    # HBase and Phoenix publish a single ``llms-full.txt`` covering the whole
+    # book (3.5 MB and 1.1 MB), which is both the completest and the cheapest
+    # route — one request instead of a few hundred.
+    _asf("hbase", "Apache HBase", "Apache HBase Reference Guide",
+         method="llms_full", llms_url="https://hbase.apache.org/llms-full.txt",
+         source_url="https://hbase.apache.org/book.html"),
+    _asf("phoenix", "Apache Phoenix",
+         "Apache Phoenix \u2014 SQL over HBase Documentation",
+         method="llms_full",
+         llms_url="https://phoenix.apache.org/llms-full.txt",
+         source_url="https://phoenix.apache.org/docs/"),
+    # The sitemap still lists the 4.x path layout (`getting_started/`,
+    # `architecture/snitch`) under `/doc/latest/`, which 5.x reorganised into
+    # `getting-started/` and `managing/operating/` — 219 of its 230 URLs 404.
+    # Crawling `latest` reads the layout the site actually has.
+    _asf("cassandra", "Apache Cassandra", "Apache Cassandra Documentation",
+         method="crawl", docs="/doc/latest/", cap=400),
+    _asf("accumulo", "Apache Accumulo", "Apache Accumulo Documentation",
+         method="crawl", docs="/docs/2.x/", cap=200),
+    _asf("ignite", "Apache Ignite",
+         "Apache Ignite 2 & 3 Documentation (distributed SQL database)",
+         cap=400),
+    _asf("geode", "Apache Geode", "Apache Geode Documentation",
+         method="crawl", cap=250),
+    _asf("couchdb", "Apache CouchDB", "Apache CouchDB Documentation",
+         method="crawl", host="docs.couchdb.org", docs="/en/stable/",
+         drop=r"/_sources/|/genindex|/search\.html", cap=300),
+    _asf("kvrocks", "Apache Kvrocks",
+         "Apache Kvrocks \u2014 RocksDB-backed Redis-protocol Store",
+         archived=True, cap=100),
+    _asf("iotdb", "Apache IoTDB", "Apache IoTDB User Guide",
+         docs="/UserGuide/", version_pick=r"/UserGuide/(?P<ver>V[\d.x]+)/",
+         cap=350),
+    _asf("tsfile", "Apache TsFile",
+         "Apache TsFile \u2014 Time-Series File Format Documentation",
+         docs="/UserGuide/", cap=120),
+    _asf("ozone", "Apache Ozone", "Apache Ozone Documentation",
+         version_pick=r"/docs/(?P<ver>\d+\.\d+\.\d+)/",
+         drop=r"/docs/(?:next|edge)/", cap=300),
+    # The sitemap advertises a restructured tree (`admin-ops/…`) that does not
+    # exist yet — every one of those URLs 404s. The published manual is still
+    # the flat set of `zookeeper*.html` pages under the `current` alias.
+    _asf("zookeeper", "Apache ZooKeeper", "Apache ZooKeeper Documentation",
+         method="crawl", docs="/doc/current/", cap=80),
+    _asf("derby", "Apache Derby", "Apache Derby Documentation",
+         method="crawl", host="db.apache.org", docs="/derby/docs/",
+         autoindex=True, drop=r"\?C=", cap=700),
+    # Streaming, messaging and shuffle.
+    # Kafka's Hugo rebuild left `/documentation/` as an empty redirect stub and
+    # moved the manual to a per-release tree, publishing every release since
+    # 0.8 side by side. The version segment is a compact code, not a number:
+    # `08` and `0100` are 0.8 and 0.10.0, while current releases are two digits
+    # (`40` = 4.0). Restricting to two digits therefore selects the modern
+    # scheme, and the highest of those is the current release.
+    _asf("kafka", "Apache Kafka", "Apache Kafka Documentation",
+         keep_re=r"^https?://kafka\.apache\.org/\d{2}/",
+         version_pick=r"^https?://kafka\.apache\.org/(?P<ver>\d{2})/",
+         cap=250, source_url="https://kafka.apache.org/documentation/"),
+    _asf("pulsar", "Apache Pulsar", "Apache Pulsar Documentation",
+         version_pick=r"/docs/(?P<ver>\d+\.\d+\.x)/",
+         drop=r"/docs/next/", cap=400),
+    _asf("bookkeeper", "Apache BookKeeper", "Apache BookKeeper Documentation",
+         version_pick=r"/docs/(?P<ver>\d+\.\d+\.\d+)/", cap=200),
+    # RocketMQ ships the Docusaurus scaffold's placeholder host in its sitemap.
+    _asf("rocketmq", "Apache RocketMQ", "Apache RocketMQ Documentation",
+         rewrite_host="rocketmq.apache.org", archived=True, cap=250),
+    _asf("fluss", "Apache Fluss",
+         "Apache Fluss \u2014 Streaming Storage Documentation",
+         version_pick=r"/docs/(?P<ver>\d+\.\d+)/", drop=r"/docs/next/",
+         cap=250),
+    _asf("samza", "Apache Samza", "Apache Samza Documentation",
+         docs="/learn/documentation/", cap=200),
+    _asf("storm", "Apache Storm", "Apache Storm Documentation",
+         method="crawl", docs="/releases/current/", cap=200),
+    _asf("beam", "Apache Beam", "Apache Beam Documentation",
+         docs="/documentation/", cap=400),
+    _asf("seatunnel", "Apache SeaTunnel", "Apache SeaTunnel Documentation",
+         archived=True, cap=350),
+    _asf("inlong", "Apache InLong", "Apache InLong Documentation",
+         version_pick=r"/docs/(?P<ver>\d+\.\d+\.\d+)/",
+         drop=r"/docs/next/", cap=300),
+    _asf("eventmesh", "Apache EventMesh", "Apache EventMesh Documentation",
+         archived=True, drop=r"/docs/v\d", cap=200),
+    _asf("celeborn", "Apache Celeborn",
+         "Apache Celeborn \u2014 Remote Shuffle Service Documentation",
+         method="crawl", cap=120),
+    _asf("uniffle", "Apache Uniffle",
+         "Apache Uniffle \u2014 Remote Shuffle Service Documentation",
+         archived=True, cap=80),
+    # Pipelines, schedulers, gateways and notebooks.
+    _asf("airflow", "Apache Airflow", "Apache Airflow Documentation",
+         method="crawl", docs="/docs/apache-airflow/stable/",
+         drop=r"/_api/|/_modules/|/_sources/|/genindex|/py-modindex", cap=400),
+    # No DolphinScheduler entry: its site is a client-rendered SPA that answers
+    # every path — including the ones its own sitemap lists — with the same
+    # 3.6 KB shell and an HTTP 404, so there is nothing to extract. Its manual
+    # is markdown in apache/dolphinscheduler-website if it is ever wanted.
+    _asf("hop", "Apache Hop", "Apache Hop Documentation",
+         method="crawl", docs="/manual/latest/", cap=350),
+    _asf("zeppelin", "Apache Zeppelin", "Apache Zeppelin Documentation",
+         method="crawl", docs="/docs/latest/", cap=200),
+    _asf("livy", "Apache Livy", "Apache Livy Documentation",
+         method="crawl", docs="/docs/latest/", cap=80),
+    # kyuubi.apache.org publishes only news and release notes; the manual is
+    # hosted on Read the Docs, which is what the project's own docs link points
+    # at.
+    _asf("kyuubi", "Apache Kyuubi",
+         "Apache Kyuubi \u2014 Multi-tenant SQL Gateway Documentation",
+         method="crawl", host="kyuubi.readthedocs.io", docs="/en/master/",
+         drop=r"/_sources/|/genindex|/search\.html|/_modules/", cap=250),
+    _asf("linkis", "Apache Linkis", "Apache Linkis Documentation",
+         docs="/docs/latest/", cap=250),
+    _asf("streampark", "Apache StreamPark", "Apache StreamPark Documentation",
+         archived=True, cap=150),
+    _asf("streampipes", "Apache StreamPipes", "Apache StreamPipes Documentation",
+         archived=True, version_pick=r"/docs/(?P<ver>\d+\.\d+\.\d+)/",
+         cap=250),
+    _asf("nifi", "Apache NiFi", "Apache NiFi Documentation",
+         method="crawl", docs="/documentation/", cap=250),
+    # Governance, security, storage abstraction and observability.
+    _asf("opendal", "Apache OpenDAL",
+         "Apache OpenDAL \u2014 Unified Data Access Layer Documentation",
+         method="llms_full",
+         llms_url="https://opendal.apache.org/llms-full.txt",
+         source_url="https://opendal.apache.org/docs/"),
+    _asf("skywalking", "Apache SkyWalking",
+         "Apache SkyWalking \u2014 Observability & Tracing Documentation",
+         docs="/docs/main/", version_pick=r"/(?P<ver>v\d+\.\d+\.\d+)/",
+         cap=350),
+    _asf("knox", "Apache Knox",
+         "Apache Knox \u2014 Hadoop Gateway User Guide",
+         method="pages",
+         pages=("https://knox.apache.org/books/knox-2-1-0/user-guide.html",
+                "https://knox.apache.org/books/knox-2-0-0/user-guide.html",
+                "https://knox.apache.org/books/knox-2-1-0/dev-guide.html"),
+         cap=10, source_url="https://knox.apache.org/books/"),
+    # Cloud / cluster infrastructure.
+    _asf("cloudstack", "Apache CloudStack", "Apache CloudStack Documentation",
+         method="crawl", host="docs.cloudstack.apache.org", docs="/en/latest/",
+         drop=r"/_sources/|/genindex|/search\.html", cap=350),
+    _asf("yunikorn", "Apache YuniKorn",
+         "Apache YuniKorn \u2014 Kubernetes Resource Scheduler Documentation",
+         archived=True, cap=250),
+    _asf("fory", "Apache Fory",
+         "Apache Fory \u2014 Serialisation Framework Documentation",
+         archived=True, cap=250),
+    # Data visualisation and analytics front-ends.
+    # Superset splits its manual into three trees and versions each of them,
+    # serving the current release unversioned.
+    _asf("superset", "Apache Superset", "Apache Superset Documentation",
+         keep_re=r"^https://superset\.apache\.org/(?:user|admin|developer)-docs/",
+         drop=r"-docs/\d+\.\d+\.\d+/|/developer-docs/api",
+         prefer=r"/(?:user|admin)-docs/", cap=350,
+         source_url="https://superset.apache.org/user-docs/intro"),
+    _asf("echarts", "Apache ECharts", "Apache ECharts Handbook",
+         method="crawl", docs="/handbook/en/", cap=250),
+    # Texera generates its site on a staging host and its sitemap says so.
+    _asf("texera", "Apache Texera",
+         "Apache Texera (incubating) \u2014 Collaborative Dataflow Workflows",
+         rewrite_host="texera.apache.org",
+         version_pick=r"/docs/(?P<ver>v\d+\.\d+\.\d+)/", cap=200),
+    _asf("hamilton", "Apache Hamilton",
+         "Apache Hamilton (incubating) \u2014 Dataflow Definition Framework",
+         method="llms_full",
+         llms_url="https://hamilton.apache.org/llms-full.txt",
+         source_url="https://hamilton.apache.org/"),
 ]
 
 def _session() -> requests.Session:
@@ -590,6 +1260,28 @@ def _p_chars(node) -> int:
     return sum(len(p.text_content()) for p in node.xpath(".//p"))
 
 
+def _densest(node):
+    """The smallest node still holding *all* of ``node``'s paragraph text.
+
+    A CSS-in-JS site names every wrapper with a build-generated hash — Atlassian's
+    developer docs are ``sc-dfRKBO hSAwOa`` and ``css-1xjox7o`` all the way down,
+    with no ``<article>``, no ``<main>`` and no id — so the picker below
+    recognises nothing and falls through to ``<body>``, which imports the site
+    header, the documentation tree and the footer onto every page. Paragraph text
+    is the signal the picker already ranks candidates by, and descending while it
+    is unchanged locates the wrapper the prose sits in without naming a class
+    that the next deploy renames.
+    """
+    while (total := _p_chars(node)):
+        for child in node.iterchildren():
+            if isinstance(child.tag, str) and _p_chars(child) == total:
+                node = child
+                break
+        else:
+            break
+    return node
+
+
 def _pick_content(doc):
     cands = doc.xpath(
         '//article | //main | //div[@role="main"] | '
@@ -602,7 +1294,7 @@ def _pick_content(doc):
     if cands:
         return max(cands, key=_p_chars)
     body = doc.xpath("//body")
-    return body[0] if body else doc
+    return _densest(body[0]) if body else doc
 
 
 def _title_of(doc, fallback="") -> str:
@@ -629,7 +1321,23 @@ def _order(urls, prefer: str, drop: str, cap: int) -> list[str]:
 
 # --- discovery -------------------------------------------------------------
 
-def _sitemap_locs(session, sitemaps) -> list[str]:
+def _sitemap_locs(session, sitemaps, _depth: int = 0) -> list[str]:
+    """Every ``<loc>`` in the given sitemaps, following sitemap *indexes*.
+
+    A ``<sitemapindex>`` lists further sitemaps rather than pages, so reading
+    only the top level yields the child sitemap URLs — which pass the page
+    filter for nothing and make a site look like it publishes no docs at all.
+
+    ``<loc>`` is *required* by the sitemap protocol to be an absolute URL, and
+    plenty of generators emit a site-relative path anyway (Hugo behind a
+    ``baseURL`` of ``/``, which is how Avro, Cassandra, Beam and Parquet
+    publish theirs). Both the entries and any nested sitemap reference are
+    therefore resolved against the sitemap's own URL — otherwise a
+    host-anchored ``keep_re`` matches nothing and the site reads as
+    undocumented. A literal ``None`` is dropped: some generators write one per
+    page when the template variable is unset, producing a well-formed sitemap
+    in which every entry is the string "None".
+    """
     out: list[str] = []
     for sm in sitemaps:
         try:
@@ -638,9 +1346,90 @@ def _sitemap_locs(session, sitemaps) -> list[str]:
             print(f"    ! sitemap {sm}: {exc}", file=sys.stderr)
             continue
         locs = re.findall(r"<loc>\s*([^<]+?)\s*</loc>", txt)
-        # normalize protocol-relative (//host/...) URLs
-        locs = [("https:" + l if l.startswith("//") else l) for l in locs]
+        # normalize protocol-relative (//host/...) and site-relative (/path) URLs
+        locs = [("https:" + l if l.startswith("//") else urljoin(sm, l))
+                for l in locs if l and l != "None"]
+        if "<sitemapindex" in txt[:2000] and _depth < 2:
+            out.extend(_sitemap_locs(session, tuple(locs), _depth + 1))
+            continue
         out.extend(locs)
+    return out
+
+
+def _rewrite_host(urls: list[str], host: str) -> list[str]:
+    """Move every URL onto ``host``, keeping its path.
+
+    A sitemap can name a host that does not serve the site. Two ways this
+    happens in practice, both silent: a Docusaurus site shipped with the
+    scaffold's placeholder ``url`` (``your-docusaurus-test-site.com``, which is
+    what Ambari and RocketMQ publish), and a site generated on a staging host
+    (``<project>.staged.apache.org``) whose sitemap keeps that name. The paths
+    are correct in both cases, so the fix is to re-point them.
+    """
+    out = []
+    for u in urls:
+        parts = urlsplit(u)
+        out.append(urlunsplit(("https", host, parts.path, parts.query, "")))
+    return out
+
+
+def _version_key(v: str) -> tuple[int, ...]:
+    return tuple(int(p) for p in re.findall(r"\d+", v)) or (0,)
+
+
+def _autoindex_latest(session, index_url: str) -> str:
+    """Resolve the newest release directory listed by an httpd autoindex.
+
+    Several ASF projects publish no doc *site* at all: ``/docs/`` is mod_autoindex
+    listing one directory per release (Derby, AsterixDB, SystemDS, Gluten). A
+    crawl rooted there follows only sibling listings, so the import silently
+    yields a table of contents of version numbers and no documentation — 19
+    "pages" of 11 KB in Derby's case. Reading the listing and descending into the
+    highest version gets the manual, and re-reading it on each run is what keeps
+    the entry from being pinned to whatever release was current the day it was
+    written.
+    """
+    doc = H.fromstring(_get(session, index_url).content)
+    doc.make_links_absolute(index_url)
+    versions = {}
+    for a in doc.xpath("//a[@href]"):
+        href = a.get("href").split("#")[0].split("?")[0]
+        if not href.startswith(index_url) or href == index_url:
+            continue
+        tail = href[len(index_url):].strip("/")
+        if re.fullmatch(r"v?\d+(?:\.\d+)*(?:-incubating)?", tail):
+            versions[tail] = href.rstrip("/") + "/"
+    if not versions:
+        return index_url
+    newest = max(versions,
+                 key=lambda v: _version_key(v.lstrip("v").split("-")[0]))
+    print(f"    autoindex: newest of {len(versions)} release dirs is {newest}")
+    return versions[newest]
+
+
+def _pick_latest_version(urls: list[str], pattern: str) -> list[str]:
+    """Keep only the newest release of a version-partitioned doc site.
+
+    Apache projects publish every release side by side (``/docs/1.5.0/``,
+    ``/docs/1.6.0/``, …, and often ``/docs/next/``), so an unfiltered sitemap
+    imports the same manual a dozen times over. Where the site offers a
+    ``latest/`` alias the ``keep_re`` can just name it; where it does not, this
+    picks the highest numbered version actually present — which is what keeps
+    the entry from rotting at the project's next release. URLs the pattern does
+    not match are kept as they are (a spec page that sits outside the versioned
+    tree still belongs in the collection).
+    """
+    rx = re.compile(pattern)
+    versions = {m.group("ver") for u in urls if (m := rx.search(u))}
+    if not versions:
+        return urls
+    newest = max(versions, key=_version_key)
+    out = []
+    for u in urls:
+        m = rx.search(u)
+        if not m or m.group("ver") == newest:
+            out.append(u)
+    print(f"    version-pinned to {newest} (of {len(versions)} published)")
     return out
 
 
@@ -695,9 +1484,17 @@ def _crawl(session, src: DocSource) -> list[str]:
             continue
         order.append(url)
         doc = H.fromstring(r.content)
-        doc.make_links_absolute(url)
-        for a in doc.xpath("//a[@href]"):
-            h = a.get("href").split("#")[0].split("?")[0].rstrip("/")
+        # Resolve against the URL that actually answered: stripping a trailing
+        # slash (as this loop does when normalizing) makes the server redirect to
+        # the directory, and resolving relative links against the pre-redirect
+        # form silently lifts every one of them a directory too high.
+        doc.make_links_absolute(r.url or url)
+        # Frames count as links: DITA-generated manuals (Derby) publish a
+        # frameset whose only outbound reference is `<frame src="toc.html">`, so
+        # following anchors alone stops dead at the cover page.
+        for el in doc.xpath("//a[@href] | //frame[@src] | //iframe[@src]"):
+            h = (el.get("href") or el.get("src"))
+            h = h.split("#")[0].split("?")[0].rstrip("/")
             if not h:
                 continue
             if h.startswith(src.prefix) and h not in seen:
@@ -765,6 +1562,7 @@ def _fetch_page_md(session, url, md_suffix) -> tuple[str, str]:
             pass
     r = _get(session, url)
     doc = H.fromstring(r.content)
+    strip_noise(doc)
     title = _title_of(doc, fallback=url.rstrip("/").rsplit("/", 1)[-1])
     return title, html_to_markdown(_pick_content(doc))
 
@@ -783,7 +1581,11 @@ def import_pages(session, src, urls, delay, dry_run) -> tuple[int, str]:
         if len(md) < 200:
             continue
         parts.append(f"\n\n<!-- source: {url} -->\n")
-        if not md.lstrip().startswith("#"):
+        # Only a *top-level* heading identifies the page; a page whose content
+        # node starts at "## Requirements" (Confluence keeps its `h1.page-title`
+        # outside the `<article>`) would otherwise be filed under no title at
+        # all, which is how a 15 KB reference page becomes unattributable.
+        if not re.match(r"#\s", md.lstrip()):
             parts.append(f"## {title}\n")
         parts.append(md)
         kept += 1
@@ -842,6 +1644,10 @@ def _git_source_url(rel: Path, slugs: dict[str, str], src: DocSource) -> str:
     for pat, url in src.url_map:
         if rel.as_posix() == pat:
             return url
+    unhosted = re.search(src.unhosted_re, rel.as_posix()) if src.unhosted_re else None
+    if src.url_template and not unhosted:
+        below = rel.relative_to(src.subdir) if src.subdir else rel
+        return src.url_template.format(slug=below.with_suffix("").as_posix())
     if slugs:
         # docs/examples/quality/column-accuracy.odcs.yaml -> "column-accuracy",
         # then "quality/column-accuracy" — the qualified form wins on collision.
@@ -854,6 +1660,27 @@ def _git_source_url(rel: Path, slugs: dict[str, str], src: DocSource) -> str:
     return f"{src.repo}/blob/{src.branch or 'HEAD'}/{rel.as_posix()}"
 
 
+def _sparse_clone(src: DocSource, clone: Path) -> None:
+    """Clone only the paths in ``src.sparse``, without historical file contents.
+
+    A vendor's docs monorepo can be enormous next to the section that is wanted:
+    ``MicrosoftDocs/fabric-docs`` is ~3.3 GB, nearly all of it screenshots, for
+    ~2 MB of Fabric IQ markdown. ``--filter=blob:none`` defers file contents to
+    the checkout, so only the matched files are ever transferred. The patterns
+    are matched in **non-cone** mode, which is what allows a suffix filter —
+    cone mode selects whole directories, which brings the media straight back.
+    """
+    IMPORTS.mkdir(parents=True, exist_ok=True)
+    cmd = ["git", "clone", "--filter=blob:none", "--no-checkout", "--depth", "1"]
+    if src.branch:
+        cmd += ["--branch", src.branch]
+    subprocess.run(cmd + [src.repo, str(clone)], capture_output=True, check=True)
+    git = ["git", "-C", str(clone)]
+    subprocess.run(git + ["sparse-checkout", "set", "--no-cone", *src.sparse],
+                   capture_output=True, check=True)
+    subprocess.run(git + ["checkout"], capture_output=True, check=True)
+
+
 def import_git(session, src: DocSource, dry_run) -> tuple[int, str]:
     if src.clone_dir:
         clone = DOCS_ROOT / src.clone_dir
@@ -864,6 +1691,8 @@ def import_git(session, src: DocSource, dry_run) -> tuple[int, str]:
     if clone.exists():
         subprocess.run(["git", "-C", str(clone), "pull", "--ff-only"],
                        capture_output=True)
+    elif src.sparse:
+        _sparse_clone(src, clone)
     else:
         IMPORTS.mkdir(parents=True, exist_ok=True)
         cmd = ["git", "clone", "--depth", "1"]
@@ -963,6 +1792,8 @@ def import_source(session, src: DocSource, delay, dry_run, force) -> dict:
     else:
         if src.method in ("sitemap", "next_data"):
             raw = _sitemap_locs(session, src.sitemaps)
+            if src.rewrite_host:
+                raw = _rewrite_host(raw, src.rewrite_host)
             keep = re.compile(src.keep_re)
             # english-only for multilingual sitemaps: strip /jp/ /zh/ /kr/ /ja/…
             norm = []
@@ -975,7 +1806,12 @@ def import_source(session, src: DocSource, delay, dry_run, force) -> dict:
         elif src.method == "pages":
             urls = list(src.pages)
         else:  # crawl
+            if src.autoindex:
+                root = _autoindex_latest(session, src.seeds[0])
+                src = replace(src, seeds=(root,), prefix=root)
             urls = _crawl(session, src)
+        if src.version_pick:
+            urls = _pick_latest_version(urls, src.version_pick)
         urls = _order(urls, src.prefer, src.drop_re, src.cap)
         print(f"    discovered {len(urls)} page URLs (cap {src.cap})")
         if dry_run:

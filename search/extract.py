@@ -108,12 +108,104 @@ def _extract_pdf(path: Path) -> ExtractedDoc:
     return doc
 
 
+def _iter_docx_blocks(parent):
+    """Yield a docx body's paragraphs *and* tables in document order.
+
+    ``Document.paragraphs`` deliberately skips anything inside a ``<w:tbl>``, so
+    reading it alone drops every table in the file. In this corpus that is not an
+    edge case: internal design documents put the comparison — the options, the
+    owners, the field-by-field schema — in a table and use prose only to
+    introduce it, so the table is the part worth retrieving.
+    """
+    from docx.oxml.table import CT_Tbl
+    from docx.oxml.text.paragraph import CT_P
+    from docx.table import Table, _Cell
+    from docx.text.paragraph import Paragraph
+
+    element = parent._tc if isinstance(parent, _Cell) else parent.element.body
+    for child in element.iterchildren():
+        if isinstance(child, CT_P):
+            yield Paragraph(child, parent)
+        elif isinstance(child, CT_Tbl):
+            yield Table(child, parent)
+
+
+def _docx_row_cells(row) -> list[str]:
+    """Cell texts of one row, with merged cells collapsed.
+
+    python-docx exposes a merged cell once per grid column it spans, all backed
+    by the same ``<w:tc>``; comparing element identity with the previous cell
+    drops the repeats without also dropping genuinely equal neighbours.
+    """
+    cells: list[str] = []
+    previous = None
+    for cell in row.cells:
+        if cell._tc is previous:
+            continue
+        previous = cell._tc
+        cells.append(_clean("\n".join(_docx_block_texts(cell))))
+    return cells
+
+
+def _docx_table_text(table) -> str:
+    """Render a table as one line per row.
+
+    Rows are emitted as ``header: value`` pairs when the first row reads like a
+    header. A bare grid of cell values loses which column a value came from,
+    which is exactly the information a query needs ("who owns the NAT gateway
+    allowlist" is only answerable if "Networks" stays attached to "Responsible
+    team"). Pipe-table syntax is avoided on purpose — see the note in
+    DESIGN-ocr-metadata.md on not making the embedding model read table markup.
+    """
+    rows = [_docx_row_cells(r) for r in table.rows]
+    rows = [r for r in rows if any(r)]
+    if not rows:
+        return ""
+
+    # A two-column table is a key/value list, not a header plus rows: its first
+    # row is the first pair ("Author | Jonas Weich"), so pairing it against the
+    # rest produces nonsense. Those read correctly as plain rows.
+    header = rows[0]
+    paired = (len(rows) > 1 and len(header) > 2
+              and all(c and len(c) <= 60 for c in header))
+    lines: list[str] = []
+    if paired:
+        lines.append(" · ".join(header))
+        for row in rows[1:]:
+            parts = [f"{header[i]}: {v}" if i < len(header) and header[i] else v
+                     for i, v in enumerate(row) if v]
+            if parts:
+                lines.append("; ".join(parts))
+    else:
+        for row in rows:
+            cells = [c for c in row if c]
+            if cells:
+                lines.append(" · ".join(cells))
+    return "\n".join(lines)
+
+
+def _docx_block_texts(parent) -> list[str]:
+    """Text of every block under *parent*, in order (tables included)."""
+    from docx.table import Table
+
+    out: list[str] = []
+    for block in _iter_docx_blocks(parent):
+        text = (_docx_table_text(block) if isinstance(block, Table)
+                else _clean(block.text))
+        if text:
+            out.append(text)
+    return out
+
+
 def _extract_docx(path: Path) -> ExtractedDoc:
     from docx import Document
 
     d = Document(str(path))
+    blocks = _docx_block_texts(d)
+    text = "\n\n".join(blocks)
+    # The title still comes from a *paragraph*: the first block of a document
+    # that opens with a table is a row of column headings, not its title.
     paras = [p.text for p in d.paragraphs if p.text and p.text.strip()]
-    text = "\n\n".join(paras)
     title = None
     if d.core_properties.title and not _is_boilerplate(d.core_properties.title):
         title = _clean(d.core_properties.title)
@@ -162,6 +254,33 @@ def _slide_text_from_package(path: Path) -> ExtractedDoc:
                             extraction_confidence=0.1)
     return ExtractedDoc(title=title or path.stem, pages=pages, n_pages=len(pages),
                         extraction_confidence=0.5, needs_review=not pages)
+
+
+def _extract_xlsx(path: Path) -> ExtractedDoc:
+    """Pull shared-string and inline cell text from an OOXML workbook."""
+    parts: list[str] = []
+    try:
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+            if "xl/sharedStrings.xml" in names:
+                xml = z.read("xl/sharedStrings.xml").decode("utf-8", errors="ignore")
+                parts.extend(html_unescape(t) for t in re.findall(r"<t[^>]*>(.*?)</t>", xml, re.S))
+            sheets = sorted(n for n in names if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n))
+            for name in sheets:
+                xml = z.read(name).decode("utf-8", errors="ignore")
+                parts.extend(html_unescape(t) for t in re.findall(r"<t[^>]*>(.*?)</t>", xml, re.S))
+                parts.extend(html_unescape(t) for t in re.findall(r"<v>(.*?)</v>", xml, re.S))
+    except Exception:
+        return ExtractedDoc(title=path.stem, pages=[], n_pages=0, needs_review=True,
+                            extraction_confidence=0.1)
+    seen: list[str] = []
+    for p in parts:
+        s = _clean(p)
+        if s and s not in seen:
+            seen.append(s)
+    text = "\n".join(seen)
+    return ExtractedDoc(title=path.stem, pages=[(1, text)] if text else [], n_pages=1,
+                        extraction_confidence=0.4, needs_review=not text)
 
 
 def _extract_pptx(path: Path) -> ExtractedDoc:
@@ -267,6 +386,7 @@ _DISPATCH = {
     ".txt": _extract_text,
     ".bpmn": _extract_bpmn,
     ".epub": _extract_epub,
+    ".xlsx": _extract_xlsx,
 }
 
 

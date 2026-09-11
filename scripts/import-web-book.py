@@ -27,6 +27,7 @@ from datetime import date
 from pathlib import Path
 
 import requests
+from lxml import etree
 from lxml import html as H
 
 DOCS_ROOT = Path(__file__).resolve().parent.parent
@@ -99,21 +100,69 @@ BOOKS: list[Book] = [
 # Elements that are never content.
 _DROP_TAGS = {"script", "style", "nav", "header", "footer", "aside", "form",
               "noscript", "svg", "button", "iframe"}
+# Elements whose text is not content at all, and which therefore have to be
+# removed from the tree rather than merely skipped while walking it (see
+# ``strip_noise``).
+_NOISE_TAGS = ("script", "style", "noscript")
+# Elements that *are* the content by definition, whatever their class says. An
+# element cannot be both the article and the site furniture around it, and
+# Atlassian's product docs wrap the whole page body in
+# ``<article class="content-with-sidebars">`` — where matching "sidebars" as a
+# substring discards every page. Same failure as the two notes below, arriving
+# through an ordinary semantic class name rather than a framework's.
+_CONTENT_TAGS = {"article", "main"}
 _BLOCK = {"p", "div", "section", "article", "header", "figcaption", "blockquote"}
 # class/id substrings that mark site chrome (nav, dropdowns, cookie banners, …).
+# ``nav-`` must not swallow ``nav-content``: Sphinx's ReadTheDocs theme — the
+# most common Python doc theme there is — names its *content* column
+# ``wy-nav-content``, and matching that drops the entire page as navigation.
 _SKIP_ATTR_RE = re.compile(
-    r"dropdown|expands|breadcrumb|pagination|menu|sidebar|site-?nav|nav-|"
+    r"dropdown|expands|breadcrumb|pagination|menu|sidebar|site-?nav|"
+    r"nav-(?!content)|"
     r"cookie|consent|banner|toolbar|social|share|skip-link|search-box|"
     r"footer|pager|pagination|prev-next",
     re.I,
 )
+# Utility-CSS classes that merely *mention* chrome. Tailwind encodes variants and
+# arbitrary values in the class name itself, so a content column can legitimately
+# carry `layout-wide:no-sidebar:lg:max-xl:pb-20` — matching "sidebar" as a
+# substring there drops the article. Tokens holding any of these characters are
+# framework utilities, never semantic role names, so they are not chrome
+# evidence.
+_UTILITY_TOKEN_RE = re.compile(r"[:\[\]()/&!]")
+
+
+def strip_noise(node) -> None:
+    """Delete ``<script>``/``<style>`` elements from a subtree, keeping tails.
+
+    ``_emit`` already skips these tags, but every string this module reads comes
+    from ``text_content()``, which walks *into* them. A server-rendered
+    CSS-in-JS page (Emotion, styled-components) emits a ``<style>`` next to the
+    component it styles rather than in the head, so a heading arrives as
+    ``<h1>Database schema<style>.css-1afrefi{display:inline-block;…}</style></h1>``
+    and the stylesheet ends up glued to the title, to table cells and to
+    paragraphs alike. Removing the elements up front is the one place that fixes
+    all of those at once — and it has to happen before the *title* is read, not
+    just before the body is converted.
+    """
+    etree.strip_elements(node, *_NOISE_TAGS, with_tail=False)
+
+
+def _is_chrome(el) -> bool:
+    """True if the element's class/id names it as site chrome rather than content."""
+    for token in ((el.get("class") or "") + " " + (el.get("id") or "")).split():
+        if _UTILITY_TOKEN_RE.search(token):
+            continue
+        if _SKIP_ATTR_RE.search(token):
+            return True
+    return False
 
 
 def _text(el) -> str:
     return re.sub(r"[ \t\u00a0]+", " ", (el.text_content() or "")).strip()
 
 
-def _emit(el, out: list[str]) -> None:
+def _emit(el, out: list[str], root: bool = False) -> None:
     """Recursively serialize an lxml element into markdown lines (in ``out``)."""
     tag = el.tag
     if not isinstance(tag, str):
@@ -121,10 +170,15 @@ def _emit(el, out: list[str]) -> None:
     tag = tag.lower()
     if tag in _DROP_TAGS:
         return
-    if el.get("role") == "navigation":
-        return
-    if _SKIP_ATTR_RE.search((el.get("class") or "") + " " + (el.get("id") or "")):
-        return
+    # The caller already decided the root *is* the content, so the chrome tests
+    # only apply below it. Otherwise one unlucky class name on the wrapper
+    # discards the whole page and the importer reports "no content extracted"
+    # for a source that is in fact perfectly readable.
+    if not root:
+        if el.get("role") == "navigation":
+            return
+        if tag not in _CONTENT_TAGS and el.get("role") != "main" and _is_chrome(el):
+            return
 
     if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
         lvl = int(tag[1])
@@ -184,8 +238,9 @@ def _emit(el, out: list[str]) -> None:
 
 
 def html_to_markdown(node) -> str:
+    strip_noise(node)
     out: list[str] = []
-    _emit(node, out)
+    _emit(node, out, root=True)
     text = "\n".join(out)
     text = re.sub(r"\n{3,}", "\n\n", text)          # collapse blank runs
     text = re.sub(r"[ \t]+\n", "\n", text)
